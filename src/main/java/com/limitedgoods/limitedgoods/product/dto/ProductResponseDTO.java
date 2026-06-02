@@ -1,9 +1,11 @@
 package com.limitedgoods.limitedgoods.product.dto;
 
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 @Builder
 public class ProductResponseDTO {
     private Long id;
