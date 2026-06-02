@@ -30,7 +30,14 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST,
             "PRODUCT_001",
                     "Id에 해당하는 상품이 없습니다."
+    ),
+    INSUFFICIENT_STOCK(
+            HttpStatus.BAD_REQUEST,
+            "PRODUCT_002",
+            "상품의 재고보다 요청한 수량이 더 많습니다."
     );
+
+
 
     private final HttpStatus status;
     private final String code;
