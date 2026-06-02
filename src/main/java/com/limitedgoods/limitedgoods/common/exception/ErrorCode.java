@@ -24,6 +24,12 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST,
             "COMMON_001",
             "잘못된 요청입니다."
+    ),
+
+    INVALID_PRODUCT_ID(
+            HttpStatus.BAD_REQUEST,
+            "PRODUCT_001",
+                    "Id에 해당하는 상품이 없습니다."
     );
 
     private final HttpStatus status;
