@@ -1,5 +1,7 @@
-package com.limitedgoods.limitedgoods.common.jwt;
+package com.limitedgoods.limitedgoods.security.jwt;
 
+import com.limitedgoods.limitedgoods.security.user.CustomUserDetails;
+import com.limitedgoods.limitedgoods.user.entity.UserRole;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,15 +32,18 @@ public class JwtFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
             if (jwtUtil.validateToken(token)) {
-                String email = jwtUtil.extractEmail(token);
+                Long userId = jwtUtil.getUserId(token);
+                String email = jwtUtil.getEmail(token);
                 String role = jwtUtil.getRole(token);
 
                 List<GrantedAuthority> authorities =
                         List.of(new SimpleGrantedAuthority("ROLE_" + role));
 
+                CustomUserDetails userDetails = new CustomUserDetails(userId, email, role);
+
                 // SecurityContext에 인증 정보 등록
                 UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(email, null, authorities);
+                        new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
 
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }

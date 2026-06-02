@@ -1,6 +1,6 @@
-package com.limitedgoods.limitedgoods.common.jwt;
+package com.limitedgoods.limitedgoods.security.jwt;
 
-import com.limitedgoods.limitedgoods.users.entity.UserRole;
+import com.limitedgoods.limitedgoods.user.entity.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -25,9 +25,10 @@ public class JwtUtil {
         this.expiration = expiration;
     }
 
-    public String generateToken(String email, UserRole role) {
+    public String generateToken(Long userId, String email, UserRole role) {
         return Jwts.builder()
                 .subject(email)
+                .claim("userId", userId)
                 .claim("role", role)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
@@ -35,7 +36,13 @@ public class JwtUtil {
                 .compact();
     }
 
-    public String extractEmail(String token) {
+    public Long getUserId(String token) {
+        Claims claims = parseClaims(token);
+
+        return claims.get("userId", Long.class);
+    }
+
+    public String getEmail(String token) {
         return parseClaims(token).getSubject();
     }
 
