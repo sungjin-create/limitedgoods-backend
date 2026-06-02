@@ -1,6 +1,6 @@
-package com.limitedgoods.limitedgoods.config;
+package com.limitedgoods.limitedgoods.security.config;
 
-import com.limitedgoods.limitedgoods.common.jwt.JwtFilter;
+import com.limitedgoods.limitedgoods.security.jwt.JwtFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
