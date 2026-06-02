@@ -34,8 +34,6 @@ public class UserController {
     public ResponseEntity<ApiResponse> userInfo(Authentication authentication) {
         String email = authentication.getName();
 
-
-
         return ResponseEntity.ok(ApiResponse.success(userService.getUserInfo(email)));
     }
 

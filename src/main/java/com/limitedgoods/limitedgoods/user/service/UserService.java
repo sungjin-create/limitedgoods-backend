@@ -2,7 +2,7 @@ package com.limitedgoods.limitedgoods.user.service;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
-import com.limitedgoods.limitedgoods.common.jwt.JwtUtil;
+import com.limitedgoods.limitedgoods.security.jwt.JwtUtil;
 import com.limitedgoods.limitedgoods.user.dto.UserInfoResponse;
 import com.limitedgoods.limitedgoods.user.dto.UserLoginRequest;
 import com.limitedgoods.limitedgoods.user.dto.UserLoginResponse;
@@ -71,7 +71,7 @@ public class UserService {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        String accessToken = jwtUtil.generateToken(user.getEmail(), user.getRole());
+        String accessToken = jwtUtil.generateToken(user.getId(), user.getEmail(), user.getRole());
         return new UserLoginResponse(accessToken);
     }
 

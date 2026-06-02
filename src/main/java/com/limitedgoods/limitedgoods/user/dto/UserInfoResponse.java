@@ -1,11 +1,13 @@
 package com.limitedgoods.limitedgoods.user.dto;
 
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-@Data
+@Getter
+@Setter
 @Builder
 public class UserInfoResponse {
     private String email;
