@@ -1,9 +1,9 @@
-package com.limitedgoods.limitedgoods.users.dto;
+package com.limitedgoods.limitedgoods.user.dto;
 
 import lombok.Data;
 
 @Data
-public class UsersLoginRequest {
+public class UserLoginRequest {
     private String email;
     private String password;
 }

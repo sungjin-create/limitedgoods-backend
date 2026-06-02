@@ -1,0 +1,48 @@
+package com.limitedgoods.limitedgoods.user.controller;
+
+import com.limitedgoods.limitedgoods.common.response.ApiResponse;
+import com.limitedgoods.limitedgoods.user.dto.UserLoginRequest;
+import com.limitedgoods.limitedgoods.user.dto.UserSignUpRequest;
+import com.limitedgoods.limitedgoods.user.dto.UserSignUpResponse;
+import com.limitedgoods.limitedgoods.user.service.UserService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/users")
+@RequiredArgsConstructor
+public class UserController {
+
+    private final UserService userService;
+
+    @PostMapping("/signup")
+    public ResponseEntity<ApiResponse> userSignUp(@RequestBody UserSignUpRequest userSignUpRequest) {
+
+        String userEmail = userService.signUpUsers(userSignUpRequest);
+
+        return ResponseEntity.ok(ApiResponse.success(new UserSignUpResponse(userEmail)));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse> userLogin(@RequestBody UserLoginRequest userLoginRequest) {
+        return ResponseEntity.ok(ApiResponse.success(userService.loginUsers(userLoginRequest)));
+    }
+
+    @GetMapping("/info")
+    public ResponseEntity<ApiResponse> userInfo(Authentication authentication) {
+        String email = authentication.getName();
+
+
+
+        return ResponseEntity.ok(ApiResponse.success(userService.getUserInfo(email)));
+    }
+
+    @GetMapping("/test")
+    public ResponseEntity<ApiResponse> test() {
+
+        return ResponseEntity.ok(ApiResponse.success("test"));
+    }
+
+}

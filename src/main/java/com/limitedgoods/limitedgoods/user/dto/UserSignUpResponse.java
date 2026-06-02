@@ -1,11 +1,11 @@
-package com.limitedgoods.limitedgoods.users.dto;
+package com.limitedgoods.limitedgoods.user.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public class UsersSignUpResponse {
+public class UserSignUpResponse {
 
     private String userEmail;
 }

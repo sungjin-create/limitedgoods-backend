@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.users.entity;
+package com.limitedgoods.limitedgoods.user.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -11,7 +11,8 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Users {
+@Table(name = "users")
+public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
