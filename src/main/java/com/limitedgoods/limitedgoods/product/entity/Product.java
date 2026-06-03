@@ -1,9 +1,8 @@
 package com.limitedgoods.limitedgoods.product.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import com.limitedgoods.limitedgoods.common.exception.BusinessException;
+import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,5 +18,16 @@ public class Product {
     private String description;
     private int price;
     private int stock;
+
+    @Version
+    private Long version;
+
+    public void decreaseStock(int quantity) {
+        if (this.stock < quantity) {
+            throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
+        }
+
+        this.stock -= quantity;
+    }
 
 }

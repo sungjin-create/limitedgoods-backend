@@ -29,6 +29,16 @@ public class OrderService {
     private final UserRepository userRepository;
     private final OrderItemRepository orderItemRepository;
 
+//    @Retryable(
+//            value = ObjectOptimisticLockingFailureException.class,
+//            maxAttempts = 10,
+//            backoff = @Backoff(
+//                    delay = 50,
+//                    multiplier = 2,
+//                    maxDelay = 200
+//            )
+//    )
+
     @Transactional
     public OrderResponseDto createOrder(Long userId, OrderRequestDto orderRequestDto){
         Long productId = orderRequestDto.getProductId();
@@ -41,14 +51,13 @@ public class OrderService {
         );
 
         //상품 아이디로 상품 확인
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findByIdWithLock(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
+//        Product product = productRepository.findById(productId).orElseThrow(()->
+//                new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
 
-        //상품 수량 확인
-        int productStock = product.getStock();
-        if(quantity > productStock) {
-            throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
-        }
+        //상품 재고 수정
+        product.decreaseStock(quantity);
 
         //총액 확인
         totalPrice = quantity * product.getPrice();
@@ -72,10 +81,6 @@ public class OrderService {
 
         orderItemRepository.save(orderItem);
 
-        //상품 재고 수정
-        product.setStock(productStock - quantity);
-        productRepository.save(product);
-
         //주문 완료
         return OrderResponseDto.builder()
                 .id(saveOrder.getId())
@@ -85,4 +90,12 @@ public class OrderService {
                 .createdAt(saveOrder.getCreatedAt())
                 .build();
     }
+
+//    @Recover
+//    public OrderResponseDto recover(ObjectOptimisticLockingFailureException e,
+//                                    Long userId,
+//                                    OrderRequestDto dto) {
+//        throw new RuntimeException("재시도 실패", e);
+//    }
+
 }

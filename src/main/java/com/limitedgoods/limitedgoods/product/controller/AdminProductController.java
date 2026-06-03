@@ -27,7 +27,6 @@ public class AdminProductController {
 
     @PostMapping("/update")
     public ResponseEntity<ApiResponse> productUpdate(@Valid @RequestBody ProductUpdateRequest productUpdateRequest) {
-
         ProductResponseDTO responseDTO = productService.updateProduct(productUpdateRequest);
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }

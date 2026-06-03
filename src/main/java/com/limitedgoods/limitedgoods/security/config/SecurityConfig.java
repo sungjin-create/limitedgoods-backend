@@ -26,7 +26,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // JWT는 세션 안 씀
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/users/signup", "/api/users/login").permitAll() // 인증 없이 허용
+                        .requestMatchers("/api/users/signup", "/api/users/login", "/actuator/**").permitAll() // 인증 없이 허용
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated() // 나머지는 토큰 필요
                 )
