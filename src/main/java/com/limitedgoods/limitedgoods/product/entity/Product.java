@@ -3,6 +3,7 @@ package com.limitedgoods.limitedgoods.product.entity;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import jakarta.persistence.*;
+import jakarta.transaction.Transactional;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,9 +20,7 @@ public class Product {
     private int price;
     private int stock;
 
-    @Version
-    private Long version;
-
+    @Transactional
     public void decreaseStock(int quantity) {
         if (this.stock < quantity) {
             throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);

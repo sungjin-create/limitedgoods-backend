@@ -28,52 +28,52 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final OrderItemRepository orderItemRepository;
+    private final RedisStockService redisStockService;
 
-//    @Retryable(
-//            value = ObjectOptimisticLockingFailureException.class,
-//            maxAttempts = 10,
-//            backoff = @Backoff(
-//                    delay = 50,
-//                    multiplier = 2,
-//                    maxDelay = 200
-//            )
-//    )
+    public OrderResponseDto createOrder(Long userId, OrderRequestDto dto) {
+        Long productId = dto.getProductId();
+        int quantity = dto.getQuantity();
+
+        // 1. Redis 원자 차감 (락 없이 안전하게)
+        redisStockService.decreaseStock(productId, quantity);
+
+        try {
+            // 2. DB 주문 저장 (트랜잭션)
+            return saveOrder(userId, dto);
+        } catch (Exception e) {
+            // 3. DB 저장 실패 시 Redis 재고 복구 (보상 트랜잭션)
+            redisStockService.increaseStock(productId, quantity);
+            throw e;
+        }
+    }
 
     @Transactional
-    public OrderResponseDto createOrder(Long userId, OrderRequestDto orderRequestDto){
-        Long productId = orderRequestDto.getProductId();
-        int quantity = orderRequestDto.getQuantity();
-        int totalPrice = 0;
+    public OrderResponseDto saveOrder(Long userId, OrderRequestDto dto) {
+        Long productId = dto.getProductId();
+        int quantity = dto.getQuantity();
 
-        //사용자 확인
-        User user = userRepository.findById(userId).orElseThrow(
-                () -> new BusinessException(ErrorCode.USER_NOT_FOUND)
-        );
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        //상품 아이디로 상품 확인
-        Product product = productRepository.findByIdWithLock(productId)
+        Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
-//        Product product = productRepository.findById(productId).orElseThrow(()->
-//                new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
 
-        //상품 재고 수정
+        // DB 재고도 동기화 (정합성 유지)
         product.decreaseStock(quantity);
 
-        //총액 확인
-        totalPrice = quantity * product.getPrice();
+        int totalPrice = quantity * product.getPrice();
 
-        //주문 생성
         Order order = Order.builder()
                 .user(user)
                 .totalPrice(totalPrice)
                 .status(OrderStatus.CREATED)
                 .createdAt(LocalDateTime.now())
                 .build();
-        Order saveOrder = orderRepository.save(order);
 
-        //상품_아이템 생성
+        Order savedOrder = orderRepository.save(order);
+
         OrderItem orderItem = OrderItem.builder()
-                .order(saveOrder)
+                .order(savedOrder)
                 .product(product)
                 .quantity(quantity)
                 .price(product.getPrice())
@@ -81,21 +81,13 @@ public class OrderService {
 
         orderItemRepository.save(orderItem);
 
-        //주문 완료
         return OrderResponseDto.builder()
-                .id(saveOrder.getId())
+                .id(savedOrder.getId())
                 .userId(user.getId())
-                .status(saveOrder.getStatus().name())
-                .totalPrice(saveOrder.getTotalPrice())
-                .createdAt(saveOrder.getCreatedAt())
+                .status(savedOrder.getStatus().name())
+                .totalPrice(savedOrder.getTotalPrice())
+                .createdAt(savedOrder.getCreatedAt())
                 .build();
     }
-
-//    @Recover
-//    public OrderResponseDto recover(ObjectOptimisticLockingFailureException e,
-//                                    Long userId,
-//                                    OrderRequestDto dto) {
-//        throw new RuntimeException("재시도 실패", e);
-//    }
 
 }

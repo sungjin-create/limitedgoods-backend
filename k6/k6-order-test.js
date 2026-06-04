@@ -15,7 +15,7 @@ export const options = {
 export default function () {
 
     const payload = JSON.stringify({
-        productId: 45,
+        productId: 56,
         quantity: 1
     });
 
