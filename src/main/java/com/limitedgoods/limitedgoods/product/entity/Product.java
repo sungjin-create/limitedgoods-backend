@@ -20,7 +20,6 @@ public class Product {
     private int price;
     private int stock;
 
-    @Transactional
     public void decreaseStock(int quantity) {
         if (this.stock < quantity) {
             throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);

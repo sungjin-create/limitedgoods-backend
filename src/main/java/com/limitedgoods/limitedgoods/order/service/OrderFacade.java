@@ -10,10 +10,20 @@ import org.springframework.stereotype.Service;
 public class OrderFacade {
 
     private final OrderService orderService;
-    private final RedisLockService redisLockService;
+    private final RedisStockService redisStockService;
 
-    public OrderResponseDto createOrder(Long userId, OrderRequestDto orderRequestDto) {
-        return orderService.createOrder(userId, orderRequestDto);
+    public OrderResponseDto redisCreateOrder(Long userId, OrderRequestDto orderRequestDto) {
+        Long productId = orderRequestDto.getProductId();
+        int quantity = orderRequestDto.getQuantity();
+
+        redisStockService.decreaseStock(productId, quantity);
+
+        try {
+            return orderService.redisSaveOrder(userId, orderRequestDto); // 다른 빈 호출 → 프록시 정상 동작
+        } catch (Exception e) {
+            redisStockService.increaseStock(productId, quantity);
+            throw e;
+        }
     }
 
 }

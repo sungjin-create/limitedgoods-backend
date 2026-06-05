@@ -5,8 +5,8 @@ export const options = {
     scenarios: {
         limited_sale: {
             executor: 'shared-iterations',
-            vus: 100,
-            iterations: 100000,
+            vus: 300,
+            iterations: 1000,
             maxDuration: '10m',
         },
     },
@@ -15,14 +15,14 @@ export const options = {
 export default function () {
 
     const payload = JSON.stringify({
-        productId: 56,
+        productId: 102,
         quantity: 1
     });
 
     const params = {
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJzdW5namluQGdtYWlsLmNvbSIsInVzZXJJZCI6NCwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzgwNDc2ODQwLCJleHAiOjE3ODA1NjMyNDB9.KSWsQxu-zmGXRPSdRLN0739Re3g-0ThWlQnSYNMVSKo-SfUaKNY_wgTly6qR-PNB'
+            'Authorization': 'Bearer eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJzdW5namluQGdtYWlsLmNvbSIsInVzZXJJZCI6NCwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzgwNjQ0Nzk4LCJleHAiOjE3ODA3MzExOTh9.zezdcFoc3oktxQbongEhsXW99_rUG3UYevtxceZmbni0ExKeaMmCRim_3CaeoogG'
         }
     };
 

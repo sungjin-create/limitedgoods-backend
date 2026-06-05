@@ -13,9 +13,9 @@ import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import com.limitedgoods.limitedgoods.user.entity.User;
 import com.limitedgoods.limitedgoods.user.repository.UserRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -30,25 +30,8 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final RedisStockService redisStockService;
 
-    public OrderResponseDto createOrder(Long userId, OrderRequestDto dto) {
-        Long productId = dto.getProductId();
-        int quantity = dto.getQuantity();
-
-        // 1. Redis 원자 차감 (락 없이 안전하게)
-        redisStockService.decreaseStock(productId, quantity);
-
-        try {
-            // 2. DB 주문 저장 (트랜잭션)
-            return saveOrder(userId, dto);
-        } catch (Exception e) {
-            // 3. DB 저장 실패 시 Redis 재고 복구 (보상 트랜잭션)
-            redisStockService.increaseStock(productId, quantity);
-            throw e;
-        }
-    }
-
     @Transactional
-    public OrderResponseDto saveOrder(Long userId, OrderRequestDto dto) {
+    public OrderResponseDto redisSaveOrder(Long userId, OrderRequestDto dto) {
         Long productId = dto.getProductId();
         int quantity = dto.getQuantity();
 
@@ -59,6 +42,54 @@ public class OrderService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
 
         // DB 재고도 동기화 (정합성 유지)
+        int updated = productRepository.decreaseStock(productId, quantity);
+        if (updated == 0) {
+            throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
+        }
+
+        int totalPrice = quantity * product.getPrice();
+
+        Order order = Order.builder()
+                .user(user)
+                .totalPrice(totalPrice)
+                .status(OrderStatus.CREATED)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        Order savedOrder = orderRepository.save(order);
+
+        OrderItem orderItem = OrderItem.builder()
+                .order(savedOrder)
+                .product(product)
+                .quantity(quantity)
+                .price(product.getPrice())
+                .build();
+
+        orderItemRepository.save(orderItem);
+
+        return OrderResponseDto.builder()
+                .id(savedOrder.getId())
+                .userId(user.getId())
+                .status(savedOrder.getStatus().name())
+                .totalPrice(savedOrder.getTotalPrice())
+                .createdAt(savedOrder.getCreatedAt())
+                .build();
+    }
+
+
+    @Transactional
+    public OrderResponseDto saveOrderWithPessimisticLock(Long userId, OrderRequestDto dto) {
+        Long productId = dto.getProductId();
+        int quantity = dto.getQuantity();
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // 비관적 락으로 조회 (FOR UPDATE)
+        Product product = productRepository.findByIdWithLock(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
+
+        // 엔티티에서 직접 차감 (dirty checking으로 DB 반영)
         product.decreaseStock(quantity);
 
         int totalPrice = quantity * product.getPrice();

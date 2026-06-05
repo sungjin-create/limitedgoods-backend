@@ -39,7 +39,6 @@ public class ProductService {
         // DB 저장 후 Redis 재고 초기화
         redisStockService.initStock(saveProduct.getId(), saveProduct.getStock());
 
-
         return ProductResponseDTO.builder().id(saveProduct.getId()).name(saveProduct.getName()).build();
     }
 

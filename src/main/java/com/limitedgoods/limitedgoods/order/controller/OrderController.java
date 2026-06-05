@@ -4,6 +4,7 @@ import com.limitedgoods.limitedgoods.common.response.ApiResponse;
 import com.limitedgoods.limitedgoods.order.dto.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderResponseDto;
 import com.limitedgoods.limitedgoods.order.service.OrderFacade;
+import com.limitedgoods.limitedgoods.order.service.OrderService;
 import com.limitedgoods.limitedgoods.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,13 +22,22 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
 
     private final OrderFacade orderFacade;
+    private final OrderService orderService;
 
     @PostMapping("/create")
     public ResponseEntity<ApiResponse<OrderResponseDto>> createOrder(@Valid @RequestBody OrderRequestDto orderRequestDto,
                                                         @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         Long userId = customUserDetails.getUserId();
-        OrderResponseDto orderResponseDto = orderFacade.createOrder(userId, orderRequestDto);
+        OrderResponseDto orderResponseDto = orderFacade.redisCreateOrder(userId, orderRequestDto);
 
         return ResponseEntity.ok(ApiResponse.success(orderResponseDto));
+    }
+
+    @PostMapping("/create/pessimistic")
+    public ResponseEntity<ApiResponse<OrderResponseDto>> createOrderPessimistic(@Valid @RequestBody OrderRequestDto orderRequestDto,
+                                                                     @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+        Long userId = customUserDetails.getUserId();
+        OrderResponseDto response = orderService.saveOrderWithPessimisticLock(userId, orderRequestDto);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }
