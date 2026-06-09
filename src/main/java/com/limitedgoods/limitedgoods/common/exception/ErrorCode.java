@@ -35,7 +35,31 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST,
             "PRODUCT_002",
             "상품의 재고보다 요청한 수량이 더 많습니다."
-    );
+    ),
+
+    ORDER_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "ORDER_001",
+            "주문을 찾을 수 없습니다."
+    ),
+
+    INVALID_ORDER_STATUS(
+            HttpStatus.BAD_REQUEST,
+            "ORDER_002",
+            "현재 주문 상태에서는 요청을 처리할 수 없습니다."
+    ),
+
+    PAYMENT_FAILED(
+            HttpStatus.BAD_REQUEST,
+            "PAYMENT_001",
+            "결제에 실패했습니다."
+    ),
+    RESERVATION_EXPIRED(
+            HttpStatus.BAD_REQUEST,
+            "PAYMENT_002",
+            "결제 유효기간이 지났습니다."
+    )
+    ;
 
 
 
