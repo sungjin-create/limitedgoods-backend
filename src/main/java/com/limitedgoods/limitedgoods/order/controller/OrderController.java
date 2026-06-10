@@ -1,17 +1,20 @@
 package com.limitedgoods.limitedgoods.order.controller;
 
 import com.limitedgoods.limitedgoods.common.response.ApiResponse;
+import com.limitedgoods.limitedgoods.order.dto.OrderDetailResponseDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderResponseDto;
+import com.limitedgoods.limitedgoods.order.payment.dto.PaymentRequestDto;
 import com.limitedgoods.limitedgoods.order.service.OrderFacade;
 import com.limitedgoods.limitedgoods.order.service.OrderService;
-import com.limitedgoods.limitedgoods.order.payment.dto.PaymentRequestDto;
 import com.limitedgoods.limitedgoods.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/user/order")
@@ -39,22 +42,36 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderResponseDto>> payOrder(
             @PathVariable Long orderId,
             @RequestBody PaymentRequestDto paymentRequestDto,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         OrderResponseDto response = orderFacade.payOrder(
                 customUserDetails.getUserId(),
                 orderId,
-                paymentRequestDto
+                paymentRequestDto,
+                idempotencyKey
         );
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PostMapping("/create/pessimistic")
-    public ResponseEntity<ApiResponse<OrderResponseDto>> createOrderPessimistic(
-            @Valid @RequestBody OrderRequestDto orderRequestDto,
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<OrderDetailResponseDto>>> getMyOrders(
             @AuthenticationPrincipal CustomUserDetails customUserDetails) {
-        Long userId = customUserDetails.getUserId();
-        OrderResponseDto response = orderService.saveOrderWithPessimisticLock(userId, orderRequestDto);
+        List<OrderDetailResponseDto> response = orderService.getMyOrders(
+                customUserDetails.getUserId()
+        );
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
+    @GetMapping("/{orderId}")
+    public ResponseEntity<ApiResponse<OrderDetailResponseDto>> getOrderDetail(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+        OrderDetailResponseDto response = orderService.getOrderDetail(
+                customUserDetails.getUserId(),
+                orderId
+        );
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
 }

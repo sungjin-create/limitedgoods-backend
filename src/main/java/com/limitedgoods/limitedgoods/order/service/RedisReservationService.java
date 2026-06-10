@@ -2,6 +2,8 @@ package com.limitedgoods.limitedgoods.order.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.limitedgoods.limitedgoods.common.exception.BusinessException;
+import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.order.dto.ReservationPayload;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -42,6 +44,17 @@ public class RedisReservationService {
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("예약 정보 역직렬화 실패", e);
         }
+    }
+
+    public void extendReservation(Long orderId, long ttlSeconds) {
+        String key = "reservation:order:" + orderId;
+        String value = redisTemplate.opsForValue().get(key);
+
+        if (value == null) {
+            throw new BusinessException(ErrorCode.RESERVATION_EXPIRED);
+        }
+
+        redisTemplate.opsForValue().set(key, value, Duration.ofSeconds(ttlSeconds));
     }
 
     public void deleteReservation(Long orderId) {

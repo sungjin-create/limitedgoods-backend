@@ -58,6 +58,11 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST,
             "PAYMENT_002",
             "결제 유효기간이 지났습니다."
+    ),
+    DUPLICATE_PAYMENT_REQUEST(
+            HttpStatus.CONFLICT,
+            "PAYMENT_003",
+            "이미 처리 중이거나 처리된 결제 요청입니다."
     )
     ;
 

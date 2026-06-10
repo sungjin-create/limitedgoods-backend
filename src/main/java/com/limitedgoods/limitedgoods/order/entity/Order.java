@@ -62,8 +62,7 @@ public class Order {
     }
 
     public void markExpired() {
-        if (this.status != OrderStatus.PAYMENT_PENDING
-                && this.status != OrderStatus.CREATED
+        if (this.status != OrderStatus.CREATED
                 && this.status != OrderStatus.PAYMENT_FAILED) {
             throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
         }
@@ -73,7 +72,7 @@ public class Order {
     }
 
     public void markPaid() {
-        validateCurrentStatus(OrderStatus.PAYMENT_PENDING);
+        validateCurrentStatus(OrderStatus.PAYMENT_APPROVED);
         LocalDateTime now = LocalDateTime.now();
         this.status = OrderStatus.PAID;
         this.paidAt = now;
@@ -105,5 +104,11 @@ public class Order {
         if (this.status != expected) {
             throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
         }
+    }
+
+    public void markPaymentApproved() {
+        validateCurrentStatus(OrderStatus.PAYMENT_PENDING);
+        this.status = OrderStatus.PAYMENT_APPROVED;
+        this.updatedAt = LocalDateTime.now();
     }
 }

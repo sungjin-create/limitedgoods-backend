@@ -2,6 +2,7 @@ package com.limitedgoods.limitedgoods.order.service;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
+import com.limitedgoods.limitedgoods.order.dto.OrderDetailResponseDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderPaymentInfo;
 import com.limitedgoods.limitedgoods.order.dto.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderResponseDto;
@@ -15,6 +16,10 @@ import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import com.limitedgoods.limitedgoods.user.entity.User;
 import com.limitedgoods.limitedgoods.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +27,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -31,96 +37,25 @@ public class OrderService {
     private final UserRepository userRepository;
     private final OrderItemRepository orderItemRepository;
     private final RedisStockService redisStockService;
+    private final RedisReservationService redisReservationService;
 
-    @Transactional
-    public OrderResponseDto redisSaveOrder(Long userId, OrderRequestDto dto) {
-        Long productId = dto.getProductId();
-        int quantity = dto.getQuantity();
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
-
-        // DB 재고도 동기화 (정합성 유지)
-        int updated = productRepository.decreaseStock(productId, quantity);
-        if (updated == 0) {
-            throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
-        }
-
-        int totalPrice = quantity * product.getPrice();
-
-        Order order = Order.builder()
-                .user(user)
-                .totalPrice(totalPrice)
-                .status(OrderStatus.CREATED)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        Order savedOrder = orderRepository.save(order);
-
-        OrderItem orderItem = OrderItem.builder()
-                .order(savedOrder)
-                .product(product)
-                .quantity(quantity)
-                .price(product.getPrice())
-                .build();
-
-        orderItemRepository.save(orderItem);
-
-        return OrderResponseDto.builder()
-                .id(savedOrder.getId())
-                .userId(user.getId())
-                .status(savedOrder.getStatus().name())
-                .totalPrice(savedOrder.getTotalPrice())
-                .createdAt(savedOrder.getCreatedAt())
-                .build();
+    @Transactional(readOnly = true)
+    public List<OrderDetailResponseDto> getMyOrders(Long userId) {
+        return orderRepository.findAllByUser_IdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(order -> {
+                    OrderItem item = orderItemRepository.findByOrderId(order.getId()).orElse(null);
+                    return toDetailResponse(order, item);
+                })
+                .toList();
     }
 
-
-    @Transactional
-    public OrderResponseDto saveOrderWithPessimisticLock(Long userId, OrderRequestDto dto) {
-        Long productId = dto.getProductId();
-        int quantity = dto.getQuantity();
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-
-        // 비관적 락으로 조회 (FOR UPDATE)
-        Product product = productRepository.findByIdWithLock(productId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
-
-        // 엔티티에서 직접 차감 (dirty checking으로 DB 반영)
-        product.decreaseStock(quantity);
-
-        int totalPrice = quantity * product.getPrice();
-
-        Order order = Order.builder()
-                .user(user)
-                .totalPrice(totalPrice)
-                .status(OrderStatus.CREATED)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        Order savedOrder = orderRepository.save(order);
-
-        OrderItem orderItem = OrderItem.builder()
-                .order(savedOrder)
-                .product(product)
-                .quantity(quantity)
-                .price(product.getPrice())
-                .build();
-
-        orderItemRepository.save(orderItem);
-
-        return OrderResponseDto.builder()
-                .id(savedOrder.getId())
-                .userId(user.getId())
-                .status(savedOrder.getStatus().name())
-                .totalPrice(savedOrder.getTotalPrice())
-                .createdAt(savedOrder.getCreatedAt())
-                .build();
+    @Transactional(readOnly = true)
+    public OrderDetailResponseDto getOrderDetail(Long userId, Long orderId) {
+        Order order = getOrder(orderId, userId);
+        OrderItem item = orderItemRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+        return toDetailResponse(order, item);
     }
 
     @Transactional
@@ -150,9 +85,24 @@ public class OrderService {
         return toResponse(savedOrder);
     }
 
+    @Transactional(readOnly = true)
+    public OrderPaymentInfo getPaymentInfo(Long userId, Long orderId) {
+        Order order = getOrder(orderId, userId);
+        OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        return new OrderPaymentInfo(
+                order.getId(),
+                orderItem.getProduct().getId(),
+                orderItem.getQuantity(),
+                order.getTotalPrice(),
+                order.getStatus()
+        );
+    }
+
     @Transactional
     public OrderPaymentInfo startPayment(Long userId, Long orderId) {
-        Order order = getOrder(orderId, userId);
+        Order order = getOrderForUpdate(orderId, userId);
         order.markPaymentPending();
 
         OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
@@ -162,21 +112,98 @@ public class OrderService {
                 order.getId(),
                 orderItem.getProduct().getId(),
                 orderItem.getQuantity(),
-                order.getTotalPrice()
+                order.getTotalPrice(),
+                order.getStatus()
         );
     }
 
     @Transactional
-    public OrderResponseDto completePayment(Long userId, Long orderId, Long productId, int quantity) {
-        int updated = productRepository.decreaseStock(productId, quantity);
+    public void markPaymentApproved(Long userId, Long orderId) {
+        Order order = getOrderForUpdate(orderId, userId);
+
+        if (order.getStatus() == OrderStatus.PAYMENT_APPROVED
+                || order.getStatus() == OrderStatus.PAID) {
+            return;
+        }
+
+        order.markPaymentApproved();
+    }
+
+    @Retryable(
+            retryFor = { Exception.class },       // 재시도할 예외 종류
+            maxAttempts = 3,                       // 최대 3회 시도
+            backoff = @Backoff(delay = 1000)       // 재시도 간격 1초
+    )
+    @Transactional
+    public OrderResponseDto finalizeApprovedPayment(Long userId, Long orderId) {
+        Order order = getOrderForUpdate(orderId, userId);
+
+        if (order.getStatus() == OrderStatus.PAID) {
+            return toResponse(order);
+        }
+
+        if (order.getStatus() != OrderStatus.PAYMENT_APPROVED) {
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+        }
+
+        OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        int updated = productRepository.decreaseStock(
+                orderItem.getProduct().getId(),
+                orderItem.getQuantity()
+        );
+
         if (updated == 0) {
             throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
         }
 
-        Order order = getOrder(orderId, userId);
         order.markPaid();
-
         return toResponse(order);
+    }
+
+    @Recover
+    @Transactional
+    public OrderResponseDto recoverFinalizeApprovedPayment(Exception e, Long userId, Long orderId) {
+        // 3회 모두 실패 시 도달
+        // 지금은 로그만 남기고 예외를 다시 던집니다
+        // 나중에 알림 발송이나 수동 처리 큐 적재로 확장 가능
+        log.error("[결제확정 최종실패] orderId={}, userId={}, reason={}", orderId, userId, e.getMessage());
+        throw new BusinessException(ErrorCode.PAYMENT_FAILED);
+    }
+
+    @Transactional
+    public void expireOrder(Long orderId) {
+        int updated = orderRepository.expireIfActive(
+                orderId,
+                OrderStatus.EXPIRED,
+                List.of(OrderStatus.CREATED, OrderStatus.PAYMENT_FAILED),
+                LocalDateTime.now()
+        );
+
+        if (updated == 0) {
+            return;
+        }
+
+        OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        redisStockService.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
+        redisReservationService.deleteReservation(orderId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Long> findExpiredOrderIds() {
+        return orderRepository.findByStatusInAndExpiresAtBefore(
+                        List.of(
+                                OrderStatus.CREATED,
+                                OrderStatus.PAYMENT_FAILED
+                        ),
+                        LocalDateTime.now()
+                )
+                .stream()
+                .map(Order::getId)
+                .toList();
     }
 
     @Transactional
@@ -196,6 +223,20 @@ public class OrderService {
         return order;
     }
 
+    private OrderDetailResponseDto toDetailResponse(Order order, OrderItem item) {
+        return OrderDetailResponseDto.builder()
+                .orderId(order.getId())
+                .totalPrice(order.getTotalPrice())
+                .status(order.getStatus().name())
+                .createdAt(order.getCreatedAt())
+                .expiresAt(order.getExpiresAt())
+                .productId(item != null ? item.getProduct().getId() : null)
+                .productName(item != null ? item.getProduct().getName() : null)
+                .quantity(item != null ? item.getQuantity() : 0)
+                .unitPrice(item != null ? item.getPrice() : 0)
+                .build();
+    }
+
     private OrderResponseDto toResponse(Order order) {
         return OrderResponseDto.builder()
                 .id(order.getId())
@@ -206,37 +247,15 @@ public class OrderService {
                 .build();
     }
 
-    @Transactional
-    public void expireOrder(Long orderId) {
-        Order order = orderRepository.findById(orderId)
+    private Order getOrderForUpdate(Long orderId, Long userId) {
+        Order order = orderRepository.findByIdForUpdate(orderId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
-        if (order.getStatus() != OrderStatus.CREATED
-                && order.getStatus() != OrderStatus.PAYMENT_PENDING
-                && order.getStatus() != OrderStatus.PAYMENT_FAILED) {
-            return;
+        if (!order.getUser().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        order.markExpired();
-        redisStockService.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
-    }
-
-    @Transactional(readOnly = true)
-    public List<Long> findExpiredOrderIds() {
-        return orderRepository.findByStatusInAndExpiresAtBefore(
-                        List.of(
-                                OrderStatus.CREATED,
-                                OrderStatus.PAYMENT_PENDING,
-                                OrderStatus.PAYMENT_FAILED
-                        ),
-                        LocalDateTime.now()
-                )
-                .stream()
-                .map(Order::getId)
-                .toList();
+        return order;
     }
 
 }
