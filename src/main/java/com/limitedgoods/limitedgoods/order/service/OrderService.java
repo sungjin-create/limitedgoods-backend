@@ -15,11 +15,11 @@ import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import com.limitedgoods.limitedgoods.user.entity.User;
 import com.limitedgoods.limitedgoods.user.repository.UserRepository;
+import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Recover;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +38,10 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final RedisStockService redisStockService;
     private final RedisReservationService redisReservationService;
+    private final MeterRegistry meterRegistry;
+
+    @PersistenceContext
+    EntityManager em;
 
     @Transactional(readOnly = true)
     public List<OrderDetailResponseDto> getMyOrders(Long userId) {
@@ -129,13 +133,9 @@ public class OrderService {
         order.markPaymentApproved();
     }
 
-    @Retryable(
-            retryFor = { Exception.class },       // 재시도할 예외 종류
-            maxAttempts = 3,                       // 최대 3회 시도
-            backoff = @Backoff(delay = 1000)       // 재시도 간격 1초
-    )
     @Transactional
     public OrderResponseDto finalizeApprovedPayment(Long userId, Long orderId) {
+
         Order order = getOrderForUpdate(orderId, userId);
 
         if (order.getStatus() == OrderStatus.PAID) {
@@ -158,18 +158,9 @@ public class OrderService {
             throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
         }
 
+
         order.markPaid();
         return toResponse(order);
-    }
-
-    @Recover
-    @Transactional
-    public OrderResponseDto recoverFinalizeApprovedPayment(Exception e, Long userId, Long orderId) {
-        // 3회 모두 실패 시 도달
-        // 지금은 로그만 남기고 예외를 다시 던집니다
-        // 나중에 알림 발송이나 수동 처리 큐 적재로 확장 가능
-        log.error("[결제확정 최종실패] orderId={}, userId={}, reason={}", orderId, userId, e.getMessage());
-        throw new BusinessException(ErrorCode.PAYMENT_FAILED);
     }
 
     @Transactional
@@ -190,6 +181,7 @@ public class OrderService {
 
         redisStockService.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
         redisReservationService.deleteReservation(orderId);
+        meterRegistry.counter("order.expired").increment();
     }
 
     @Transactional(readOnly = true)

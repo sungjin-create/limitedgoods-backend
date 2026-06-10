@@ -10,9 +10,15 @@ import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import com.limitedgoods.limitedgoods.order.payment.dto.PaymentRequestDto;
 import com.limitedgoods.limitedgoods.order.payment.service.PaymentFailedException;
 import com.limitedgoods.limitedgoods.order.payment.service.PaymentService;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderFacade {
@@ -22,8 +28,24 @@ public class OrderFacade {
     private final PaymentService paymentService;
     private final RedisReservationService redisReservationService;
     private final PaymentIdempotencyService paymentIdempotencyService;
+    private final MeterRegistry  meterRegistry;
 
     private final long EXPIRED_SECONDS = 300;
+
+    @Retryable(
+            retryFor = { Exception.class },       // 재시도할 예외 종류
+            maxAttempts = 3,                       // 최대 3회 시도
+            backoff = @Backoff(delay = 1000)       // 재시도 간격 1초
+    )
+    public OrderResponseDto retryFinalizeApprovedPayment(Long userId, Long orderId){
+        return orderService.finalizeApprovedPayment(userId, orderId);
+    }
+
+    @Recover
+    public OrderResponseDto recoverFinalize(Exception e, Long userId, Long orderId){
+        log.error("[결제 확정 최종 실패] 재시도 3회 모두 실패. orderId = {}, userId = {}", orderId, userId);
+        throw new BusinessException(ErrorCode.PAYMENT_FAILED);
+    }
 
     public OrderResponseDto createOrder(Long userId, OrderRequestDto request) {
         Long productId = request.getProductId();
@@ -34,10 +56,11 @@ public class OrderFacade {
         try {
             OrderResponseDto order = orderService.createOrder(userId, request, EXPIRED_SECONDS);
             redisReservationService.createReservation(order.getId(), productId, quantity, EXPIRED_SECONDS);
-
+            meterRegistry.counter("order.created", "result", "success").increment();
             return order;
         } catch (RuntimeException e) {
             redisStockService.increaseStock(productId, quantity);
+            meterRegistry.counter("order.created", "result", "fail").increment();
             throw e;
         }
     }
@@ -89,16 +112,18 @@ public class OrderFacade {
             orderService.markPaymentApproved(userId, orderId);
 
             // 9. DB 재고 차감 및 주문 상태를 PAID로 확정
-            OrderResponseDto response = orderService.finalizeApprovedPayment(userId, orderId);
+            OrderResponseDto response = retryFinalizeApprovedPayment(userId, orderId);
 
             // 10. Redis 예약키 삭제 및 멱등성 응답 저장
             redisReservationService.deleteReservation(orderId);
             paymentIdempotencyService.saveResponse(userId, orderId, idempotencyKey, response);
+            meterRegistry.counter("payment.result", "status", "success").increment();
             return response;
 
         } catch (PaymentFailedException e) {
             // PG 결제 승인 실패 → 주문 상태를 PAYMENT_FAILED로 전이 (예약은 유지, 재결제 가능)
             orderService.failPayment(userId, orderId, e.getMessage());
+            meterRegistry.counter("payment.result", "status", "failed").increment();
             throw new BusinessException(ErrorCode.PAYMENT_FAILED);
         } finally {
             // 성공/실패 여부와 관계없이 분산 락 해제

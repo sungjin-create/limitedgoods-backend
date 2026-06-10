@@ -20,7 +20,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         """)
     Optional<Product> findByIdWithLock(Long id);
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(flushAutomatically = true)
     @Query("""
         update Product p
         set p.stock = p.stock - :quantity
