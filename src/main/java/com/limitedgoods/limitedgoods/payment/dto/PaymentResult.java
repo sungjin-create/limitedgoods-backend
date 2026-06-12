@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.order.payment.dto;
+package com.limitedgoods.limitedgoods.payment.dto;
 
 import java.time.LocalDateTime;
 

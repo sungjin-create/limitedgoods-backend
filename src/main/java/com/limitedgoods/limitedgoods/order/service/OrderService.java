@@ -250,4 +250,38 @@ public class OrderService {
         return order;
     }
 
+    @Transactional
+    public OrderResponseDto cancelPaidOrder(Long userId, Long orderId) {
+        Order order = getOrderForUpdate(orderId, userId);
+
+        if (order.getStatus() == OrderStatus.CANCELED) {
+            throw new BusinessException(ErrorCode.ORDER_ALREADY_CANCELED);
+        }
+
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
+        }
+
+        if (order.getStatus() != OrderStatus.PAID) {
+            throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
+        }
+
+        OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        productRepository.increaseStock(
+                orderItem.getProduct().getId(),
+                orderItem.getQuantity()
+        );
+
+        redisStockService.increaseStock(
+                orderItem.getProduct().getId(),
+                orderItem.getQuantity()
+        );
+
+        order.cancelPaidOrder();
+
+        return toResponse(order);
+    }
+
 }

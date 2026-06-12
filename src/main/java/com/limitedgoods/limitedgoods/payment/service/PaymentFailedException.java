@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.order.payment.service;
+package com.limitedgoods.limitedgoods.payment.service;
 
 public class PaymentFailedException extends RuntimeException {
     public PaymentFailedException(String message) {

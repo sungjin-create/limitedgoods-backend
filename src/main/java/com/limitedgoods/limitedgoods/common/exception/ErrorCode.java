@@ -49,6 +49,18 @@ public enum ErrorCode {
             "현재 주문 상태에서는 요청을 처리할 수 없습니다."
     ),
 
+    ORDER_ALREADY_CANCELED(
+            HttpStatus.CONFLICT,
+            "ORDER_003",
+            "이미 취소된 주문입니다."
+    ),
+
+    ORDER_CANCEL_NOT_ALLOWED(
+            HttpStatus.BAD_REQUEST,
+            "ORDER_004",
+            "현재 주문 상태에서는 취소할 수 없습니다."
+    ),
+
     PAYMENT_FAILED(
             HttpStatus.BAD_REQUEST,
             "PAYMENT_001",
@@ -63,6 +75,12 @@ public enum ErrorCode {
             HttpStatus.CONFLICT,
             "PAYMENT_003",
             "이미 처리 중이거나 처리된 결제 요청입니다."
+    ),
+
+    PAYMENT_CANCEL_FAILED(
+            HttpStatus.BAD_REQUEST,
+            "PAYMENT_004",
+            "결제 취소에 실패했습니다."
     )
     ;
 

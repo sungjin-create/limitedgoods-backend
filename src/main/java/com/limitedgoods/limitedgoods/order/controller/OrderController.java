@@ -4,7 +4,7 @@ import com.limitedgoods.limitedgoods.common.response.ApiResponse;
 import com.limitedgoods.limitedgoods.order.dto.OrderDetailResponseDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderResponseDto;
-import com.limitedgoods.limitedgoods.order.payment.dto.PaymentRequestDto;
+import com.limitedgoods.limitedgoods.payment.dto.PaymentRequestDto;
 import com.limitedgoods.limitedgoods.order.service.OrderFacade;
 import com.limitedgoods.limitedgoods.order.service.OrderService;
 import com.limitedgoods.limitedgoods.security.user.CustomUserDetails;
@@ -71,6 +71,19 @@ public class OrderController {
                 customUserDetails.getUserId(),
                 orderId
         );
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/{orderId}/cancel")
+    public ResponseEntity<ApiResponse<OrderResponseDto>> cancelOrder(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        OrderResponseDto response = orderFacade.cancelOrder(
+                customUserDetails.getUserId(),
+                orderId
+        );
+
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

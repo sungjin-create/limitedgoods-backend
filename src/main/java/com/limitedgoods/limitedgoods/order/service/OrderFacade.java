@@ -7,9 +7,9 @@ import com.limitedgoods.limitedgoods.order.dto.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderResponseDto;
 import com.limitedgoods.limitedgoods.order.dto.ReservationPayload;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
-import com.limitedgoods.limitedgoods.order.payment.dto.PaymentRequestDto;
-import com.limitedgoods.limitedgoods.order.payment.service.PaymentFailedException;
-import com.limitedgoods.limitedgoods.order.payment.service.PaymentService;
+import com.limitedgoods.limitedgoods.payment.dto.PaymentRequestDto;
+import com.limitedgoods.limitedgoods.payment.service.PaymentFailedException;
+import com.limitedgoods.limitedgoods.payment.service.PaymentService;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -128,6 +128,25 @@ public class OrderFacade {
         } finally {
             // 성공/실패 여부와 관계없이 분산 락 해제
             paymentIdempotencyService.releaseLock(userId, orderId, idempotencyKey);
+        }
+    }
+
+    public OrderResponseDto cancelOrder(Long userId, Long orderId) {
+        OrderPaymentInfo paymentInfo = orderService.getPaymentInfo(userId, orderId);
+
+        if (paymentInfo.orderStatus() == OrderStatus.CANCELED) {
+            throw new BusinessException(ErrorCode.ORDER_ALREADY_CANCELED);
+        }
+
+        if (paymentInfo.orderStatus() != OrderStatus.PAID) {
+            throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
+        }
+
+        try {
+            paymentService.cancel(orderId, paymentInfo.totalPrice());
+            return orderService.cancelPaidOrder(userId, orderId);
+        } catch (PaymentFailedException e) {
+            throw new BusinessException(ErrorCode.PAYMENT_CANCEL_FAILED);
         }
     }
 

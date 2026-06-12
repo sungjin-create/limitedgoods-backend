@@ -88,8 +88,8 @@ public class Order {
         this.updatedAt = now;
     }
 
-    public void cancel() {
-        validateCurrentStatus(OrderStatus.CREATED);
+    public void cancelPaidOrder() {
+        validateCurrentStatus(OrderStatus.PAID);
         this.status = OrderStatus.CANCELED;
         this.updatedAt = LocalDateTime.now();
     }

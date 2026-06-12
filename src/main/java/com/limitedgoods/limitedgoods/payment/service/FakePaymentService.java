@@ -1,7 +1,7 @@
-package com.limitedgoods.limitedgoods.order.payment.service;
+package com.limitedgoods.limitedgoods.payment.service;
 
-import com.limitedgoods.limitedgoods.order.payment.dto.PaymentRequestDto;
-import com.limitedgoods.limitedgoods.order.payment.dto.PaymentResult;
+import com.limitedgoods.limitedgoods.payment.dto.PaymentRequestDto;
+import com.limitedgoods.limitedgoods.payment.dto.PaymentResult;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -19,6 +19,11 @@ public class FakePaymentService implements PaymentService {
                 UUID.randomUUID().toString(),
                 LocalDateTime.now()
         );
+    }
+
+    @Override
+    public void cancel(Long orderId, int amount) {
+        // 지금은 Fake PG라 성공 처리
     }
 
 }
