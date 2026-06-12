@@ -5,7 +5,7 @@ import com.limitedgoods.limitedgoods.order.dto.OrderDetailResponseDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderResponseDto;
 import com.limitedgoods.limitedgoods.payment.dto.PaymentRequestDto;
-import com.limitedgoods.limitedgoods.order.service.OrderFacade;
+import com.limitedgoods.limitedgoods.order.application.OrderFacade;
 import com.limitedgoods.limitedgoods.order.service.OrderService;
 import com.limitedgoods.limitedgoods.security.user.CustomUserDetails;
 import jakarta.validation.Valid;

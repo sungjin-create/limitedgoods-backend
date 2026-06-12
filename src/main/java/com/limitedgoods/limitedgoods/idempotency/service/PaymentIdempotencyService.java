@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.order.service;
+package com.limitedgoods.limitedgoods.idempotency.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

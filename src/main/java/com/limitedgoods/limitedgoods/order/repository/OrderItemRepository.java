@@ -1,6 +1,6 @@
-package com.limitedgoods.limitedgoods.orderitem.repository;
+package com.limitedgoods.limitedgoods.order.repository;
 
-import com.limitedgoods.limitedgoods.orderitem.entity.OrderItem;
+import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.order.service;
+package com.limitedgoods.limitedgoods.stock.service;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;

@@ -1,6 +1,5 @@
-package com.limitedgoods.limitedgoods.orderitem.entity;
+package com.limitedgoods.limitedgoods.order.entity;
 
-import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import jakarta.persistence.*;
 import lombok.*;

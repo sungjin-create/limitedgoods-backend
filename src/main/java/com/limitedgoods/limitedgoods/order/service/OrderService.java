@@ -2,17 +2,20 @@ package com.limitedgoods.limitedgoods.order.service;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
-import com.limitedgoods.limitedgoods.order.dto.OrderDetailResponseDto;
-import com.limitedgoods.limitedgoods.order.dto.OrderPaymentInfo;
-import com.limitedgoods.limitedgoods.order.dto.OrderRequestDto;
-import com.limitedgoods.limitedgoods.order.dto.OrderResponseDto;
+import com.limitedgoods.limitedgoods.event.payload.OrderExpiredEvent;
+import com.limitedgoods.limitedgoods.event.payload.OrderPaidEvent;
+import com.limitedgoods.limitedgoods.order.dto.*;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
-import com.limitedgoods.limitedgoods.orderitem.entity.OrderItem;
-import com.limitedgoods.limitedgoods.orderitem.repository.OrderItemRepository;
+import com.limitedgoods.limitedgoods.order.entity.OrderItem;
+import com.limitedgoods.limitedgoods.order.repository.OrderItemRepository;
+import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEventType;
+import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventService;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
+import com.limitedgoods.limitedgoods.order.reservation.RedisReservationService;
+import com.limitedgoods.limitedgoods.stock.service.RedisStockService;
 import com.limitedgoods.limitedgoods.user.entity.User;
 import com.limitedgoods.limitedgoods.user.repository.UserRepository;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -39,6 +42,7 @@ public class OrderService {
     private final RedisStockService redisStockService;
     private final RedisReservationService redisReservationService;
     private final MeterRegistry meterRegistry;
+    private final OutboxEventService outboxEventService;
 
     @PersistenceContext
     EntityManager em;
@@ -158,8 +162,20 @@ public class OrderService {
             throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
         }
 
-
         order.markPaid();
+
+        outboxEventService.save(
+                OutboxEventType.ORDER_PAID,
+                "ORDER",
+                order.getId(),
+                new OrderPaidEvent(
+                        order.getId(),
+                        userId,
+                        order.getTotalPrice(),
+                        LocalDateTime.now()
+                )
+        );
+
         return toResponse(order);
     }
 
@@ -181,6 +197,17 @@ public class OrderService {
 
         redisStockService.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
         redisReservationService.deleteReservation(orderId);
+        outboxEventService.save(
+                OutboxEventType.ORDER_EXPIRED,
+                "ORDER",
+                orderId,
+                new OrderExpiredEvent(
+                        orderId,
+                        orderItem.getProduct().getId(),
+                        orderItem.getQuantity(),
+                        LocalDateTime.now()
+                )
+        );
         meterRegistry.counter("order.expired").increment();
     }
 

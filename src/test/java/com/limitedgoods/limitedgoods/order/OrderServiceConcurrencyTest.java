@@ -2,9 +2,9 @@ package com.limitedgoods.limitedgoods.order;
 
 import com.limitedgoods.limitedgoods.order.dto.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
-import com.limitedgoods.limitedgoods.order.service.OrderFacade;
-import com.limitedgoods.limitedgoods.order.service.RedisStockService;
-import com.limitedgoods.limitedgoods.orderitem.repository.OrderItemRepository;
+import com.limitedgoods.limitedgoods.order.application.OrderFacade;
+import com.limitedgoods.limitedgoods.stock.service.RedisStockService;
+import com.limitedgoods.limitedgoods.order.repository.OrderItemRepository;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import com.limitedgoods.limitedgoods.user.entity.User;

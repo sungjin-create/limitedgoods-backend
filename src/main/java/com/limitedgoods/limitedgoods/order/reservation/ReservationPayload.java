@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.order.dto;
+package com.limitedgoods.limitedgoods.order.reservation;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

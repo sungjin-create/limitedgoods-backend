@@ -2,7 +2,7 @@ package com.limitedgoods.limitedgoods.product.service;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
-import com.limitedgoods.limitedgoods.order.service.RedisStockService;
+import com.limitedgoods.limitedgoods.stock.service.RedisStockService;
 import com.limitedgoods.limitedgoods.product.dto.ProductRegisterRequest;
 import com.limitedgoods.limitedgoods.product.dto.ProductResponseDTO;
 import com.limitedgoods.limitedgoods.product.dto.ProductUpdateRequest;

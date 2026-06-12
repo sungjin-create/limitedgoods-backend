@@ -1,6 +1,6 @@
 package com.limitedgoods.limitedgoods.common.config;
 
-import com.limitedgoods.limitedgoods.order.service.RedisStockService;
+import com.limitedgoods.limitedgoods.stock.service.RedisStockService;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
