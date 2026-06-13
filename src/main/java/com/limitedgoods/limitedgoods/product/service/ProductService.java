@@ -9,6 +9,8 @@ import com.limitedgoods.limitedgoods.product.dto.ProductUpdateRequest;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +41,7 @@ public class ProductService {
         // DB 저장 후 Redis 재고 초기화
         redisStockService.initStock(saveProduct.getId(), saveProduct.getStock());
 
-        return ProductResponseDTO.builder().id(saveProduct.getId()).name(saveProduct.getName()).build();
+        return toResponse(saveProduct);
     }
 
     @Transactional
@@ -63,7 +65,7 @@ public class ProductService {
         // 재고 변경 시 Redis도 동기화
         redisStockService.initStock(updateProduct.getId(), updateProduct.getStock());
 
-        return  ProductResponseDTO.builder().id(id).name(updateProduct.getName()).build();
+        return toResponse(updateProduct);
     }
 
     @Transactional
@@ -77,5 +79,21 @@ public class ProductService {
     public void initRedisStock() {
         List<Product> products = productRepository.findAll();
         products.forEach(p -> redisStockService.initStock(p.getId(), p.getStock()));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDTO> getProducts(Pageable pageable) {
+        return productRepository.findAll(pageable)
+                .map(this::toResponse);
+    }
+
+    private ProductResponseDTO toResponse(Product product) {
+        return ProductResponseDTO.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .description(product.getDescription())
+                .price(product.getPrice())
+                .stock(product.getStock())
+                .build();
     }
 }
