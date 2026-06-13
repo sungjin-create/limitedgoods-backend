@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 @Slf4j
 @Component
@@ -19,7 +20,7 @@ public class OutboxEventPublisher {
     private final OutboxEventRepository outboxEventRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    @Scheduled(fixedDelay = 1000)
+    @Scheduled(fixedDelayString = "${outbox.publish.delay}")
     @Transactional
     public void publish() {
         List<OutboxEvent> events =

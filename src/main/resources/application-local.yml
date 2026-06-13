@@ -1,0 +1,7 @@
+outbox:
+  publish:
+    delay: 30000
+logging:
+  level:
+    org.springframework.kafka: DEBUG
+    org.apache.kafka.clients.consumer: INFO
