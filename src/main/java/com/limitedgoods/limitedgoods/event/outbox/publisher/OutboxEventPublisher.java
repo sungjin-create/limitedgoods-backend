@@ -1,9 +1,12 @@
 package com.limitedgoods.limitedgoods.event.outbox.publisher;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEvent;
 import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEventStatus;
 import com.limitedgoods.limitedgoods.event.outbox.repository.OutboxEventRepository;
 import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventService;
+import com.limitedgoods.limitedgoods.event.processed.dto.KafkaEventEnvelope;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -24,6 +27,7 @@ public class OutboxEventPublisher {
     private final OutboxEventRepository outboxEventRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final OutboxEventService outboxEventService;
+    private final ObjectMapper objectMapper;
 
     @Scheduled(fixedDelayString = "${outbox.publish.delay}")
     public void publish() {
@@ -39,17 +43,30 @@ public class OutboxEventPublisher {
     }
 
     private void publishOne(OutboxEvent event) {
-        kafkaTemplate.send(
-                TOPIC,
-                event.getAggregateId().toString(),
-                event.getPayload()
-        ).whenComplete((result, ex) -> {
-            if (ex == null) {
-                outboxEventService.markPublished(event.getId());
-            } else {
-                outboxEventService.markFailed(event.getId(), ex);
-            }
-        });
+        try {
+            KafkaEventEnvelope envelope = new KafkaEventEnvelope(
+                    event.getId(),
+                    event.getEventType().name(),
+                    event.getPayload()
+            );
+
+            String message = objectMapper.writeValueAsString(envelope);
+
+            kafkaTemplate.send(
+                    TOPIC,
+                    event.getAggregateId().toString(),
+                    message
+            ).whenComplete((result, ex) -> {
+                if (ex == null) {
+                    outboxEventService.markPublished(event.getId());
+                } else {
+                    outboxEventService.markFailed(event.getId(), ex);
+                }
+            });
+
+        } catch (JsonProcessingException e) {
+            outboxEventService.markFailed(event.getId(), e);
+        }
     }
 
 }
