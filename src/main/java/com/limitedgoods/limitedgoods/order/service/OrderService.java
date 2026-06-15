@@ -50,13 +50,7 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderDetailResponseDto> getMyOrders(Long userId) {
-        return orderRepository.findAllByUser_IdOrderByCreatedAtDesc(userId)
-                .stream()
-                .map(order -> {
-                    OrderItem item = orderItemRepository.findByOrderId(order.getId()).orElse(null);
-                    return toDetailResponse(order, item);
-                })
-                .toList();
+        return orderRepository.findMyOrderDetails(userId);
     }
 
     @Transactional(readOnly = true)
@@ -244,17 +238,16 @@ public class OrderService {
     }
 
     private OrderDetailResponseDto toDetailResponse(Order order, OrderItem item) {
-        return OrderDetailResponseDto.builder()
-                .orderId(order.getId())
-                .totalPrice(order.getTotalPrice())
-                .status(order.getStatus().name())
-                .createdAt(order.getCreatedAt())
-                .expiresAt(order.getExpiresAt())
-                .productId(item != null ? item.getProduct().getId() : null)
-                .productName(item != null ? item.getProduct().getName() : null)
-                .quantity(item != null ? item.getQuantity() : 0)
-                .unitPrice(item != null ? item.getPrice() : 0)
-                .build();
+        return new OrderDetailResponseDto(order.getId(),
+                order.getTotalPrice(),
+                order.getStatus(),
+                order.getCreatedAt(),
+                order.getExpiresAt(),
+                item != null ? item.getProduct().getId() : null,
+                item != null ? item.getProduct().getName() : null,
+                item != null ? item.getQuantity() : 0,
+                item != null ? item.getPrice() : 0
+                );
     }
 
     private OrderResponseDto toResponse(Order order) {
