@@ -23,7 +23,9 @@ public class FakePaymentService implements PaymentService {
 
     @Override
     public void cancel(Long orderId, int amount) {
-        // 지금은 Fake PG라 성공 처리
+        if (orderId % 5 == 0) {
+            throw new PaymentFailedException("PG 환불 실패");
+        }
     }
 
 }

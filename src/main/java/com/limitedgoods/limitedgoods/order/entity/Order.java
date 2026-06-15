@@ -37,6 +37,10 @@ public class Order {
     private LocalDateTime expiresAt;
     private String failReason;
 
+    private LocalDateTime cancelRequestedAt;
+    private LocalDateTime refundedAt;
+    private String cancelFailReason;
+
     public static Order create(User user, int totalPrice, LocalDateTime expiresAt) {
         LocalDateTime now = LocalDateTime.now();
 
@@ -109,6 +113,35 @@ public class Order {
     public void markPaymentApproved() {
         validateCurrentStatus(OrderStatus.PAYMENT_PENDING);
         this.status = OrderStatus.PAYMENT_APPROVED;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void requestCancel() {
+        validateCurrentStatus(OrderStatus.PAID);
+
+        this.status = OrderStatus.CANCEL_REQUESTED;
+        this.cancelRequestedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+        this.cancelFailReason = null;
+    }
+
+    public void markRefunded() {
+        if (this.status != OrderStatus.CANCEL_REQUESTED
+                && this.status != OrderStatus.CANCEL_FAILED) {
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+        }
+
+        this.status = OrderStatus.REFUNDED;
+        this.refundedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+        this.cancelFailReason = null;
+    }
+
+    public void markCancelFailed(String reason) {
+        validateCurrentStatus(OrderStatus.CANCEL_REQUESTED);
+
+        this.status = OrderStatus.CANCEL_FAILED;
+        this.cancelFailReason = reason;
         this.updatedAt = LocalDateTime.now();
     }
 }

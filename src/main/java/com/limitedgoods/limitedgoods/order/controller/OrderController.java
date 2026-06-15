@@ -87,4 +87,17 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @PostMapping("/{orderId}/refund/retry")
+    public ResponseEntity<ApiResponse<OrderResponseDto>> retryRefund(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        OrderResponseDto response = orderFacade.retryRefund(
+                customUserDetails.getUserId(),
+                orderId
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
 }

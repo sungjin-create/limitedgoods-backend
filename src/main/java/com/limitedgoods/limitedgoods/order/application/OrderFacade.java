@@ -136,20 +136,35 @@ public class OrderFacade {
     }
 
     public OrderResponseDto cancelOrder(Long userId, Long orderId) {
+        OrderPaymentInfo cancelInfo = orderService.requestCancel(userId, orderId);
+
+        try {
+            paymentService.cancel(orderId, cancelInfo.totalPrice());
+
+            return orderService.completeRefund(userId, orderId);
+
+        } catch (PaymentFailedException e) {
+            orderService.failRefund(userId, orderId, e.getMessage());
+            throw new BusinessException(ErrorCode.PAYMENT_CANCEL_FAILED);
+        }
+    }
+
+    public OrderResponseDto retryRefund(Long userId, Long orderId) {
         OrderPaymentInfo paymentInfo = orderService.getPaymentInfo(userId, orderId);
 
-        if (paymentInfo.orderStatus() == OrderStatus.CANCELED) {
-            throw new BusinessException(ErrorCode.ORDER_ALREADY_CANCELED);
+        if (paymentInfo.orderStatus() == OrderStatus.REFUNDED) {
+            return orderService.completeRefund(userId, orderId);
         }
 
-        if (paymentInfo.orderStatus() != OrderStatus.PAID) {
+        if (paymentInfo.orderStatus() != OrderStatus.CANCEL_FAILED) {
             throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
         }
 
         try {
             paymentService.cancel(orderId, paymentInfo.totalPrice());
-            return orderService.cancelPaidOrder(userId, orderId);
+            return orderService.completeRefund(userId, orderId);
         } catch (PaymentFailedException e) {
+            orderService.failRefund(userId, orderId, e.getMessage());
             throw new BusinessException(ErrorCode.PAYMENT_CANCEL_FAILED);
         }
     }

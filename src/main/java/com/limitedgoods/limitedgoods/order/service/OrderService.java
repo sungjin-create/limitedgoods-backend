@@ -2,6 +2,7 @@ package com.limitedgoods.limitedgoods.order.service;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
+import com.limitedgoods.limitedgoods.event.payload.OrderCanceledEvent;
 import com.limitedgoods.limitedgoods.event.payload.OrderExpiredEvent;
 import com.limitedgoods.limitedgoods.event.payload.OrderPaidEvent;
 import com.limitedgoods.limitedgoods.order.dto.*;
@@ -309,6 +310,103 @@ public class OrderService {
         order.cancelPaidOrder();
 
         return toResponse(order);
+    }
+
+    @Transactional
+    public OrderPaymentInfo requestCancel(Long userId, Long orderId) {
+        Order order = getOrderForUpdate(orderId, userId);
+
+        if (order.getStatus() == OrderStatus.REFUNDED) {
+            throw new BusinessException(ErrorCode.ORDER_ALREADY_CANCELED);
+        }
+
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
+        }
+
+        if (order.getStatus() == OrderStatus.CANCEL_REQUESTED) {
+            return getPaymentInfo(userId, orderId);
+        }
+
+        if (order.getStatus() == OrderStatus.CANCEL_FAILED) {
+            return getPaymentInfo(userId, orderId);
+        }
+
+        if (order.getStatus() != OrderStatus.PAID) {
+            throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
+        }
+
+        order.requestCancel();
+
+        OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        return new OrderPaymentInfo(
+                order.getId(),
+                orderItem.getProduct().getId(),
+                orderItem.getQuantity(),
+                order.getTotalPrice(),
+                order.getStatus()
+        );
+    }
+
+    @Transactional
+    public OrderResponseDto completeRefund(Long userId, Long orderId) {
+        Order order = getOrderForUpdate(orderId, userId);
+
+        if (order.getStatus() == OrderStatus.REFUNDED) {
+            return toResponse(order);
+        }
+
+        if (order.getStatus() != OrderStatus.CANCEL_REQUESTED
+                && order.getStatus() != OrderStatus.CANCEL_FAILED) {
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+        }
+
+        OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        productRepository.increaseStock(
+                orderItem.getProduct().getId(),
+                orderItem.getQuantity()
+        );
+
+        redisStockService.increaseStock(
+                orderItem.getProduct().getId(),
+                orderItem.getQuantity()
+        );
+
+        order.markRefunded();
+
+        outboxEventService.save(
+                OutboxEventType.ORDER_CANCELED,
+                "ORDER",
+                order.getId(),
+                new OrderCanceledEvent(
+                        order.getId(),
+                        userId,
+                        orderItem.getProduct().getId(),
+                        orderItem.getQuantity(),
+                        LocalDateTime.now()
+                )
+        );
+
+        return toResponse(order);
+    }
+
+    @Transactional
+    public void failRefund(Long userId, Long orderId, String reason) {
+        Order order = getOrderForUpdate(orderId, userId);
+
+        if (order.getStatus() == OrderStatus.REFUNDED) {
+            return;
+        }
+
+        if (order.getStatus() != OrderStatus.CANCEL_REQUESTED) {
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+        }
+
+        order.markCancelFailed(reason);
     }
 
 }
