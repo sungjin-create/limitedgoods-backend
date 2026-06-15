@@ -20,13 +20,22 @@ public class OutboxEvent {
     @Enumerated(EnumType.STRING)
     private OutboxEventType eventType;
 
+    @Enumerated(EnumType.STRING)
+    private OutboxEventStatus status;
+
     private String aggregateType;
     private Long aggregateId;
 
     @Column(columnDefinition = "TEXT")
     private String payload;
 
-    private boolean published;
+    private int retryCount;
+
+    @Column(columnDefinition = "TEXT")
+    private String lastError;
+
+    private LocalDateTime lastTriedAt;
+
     private LocalDateTime createdAt;
     private LocalDateTime publishedAt;
 
@@ -41,13 +50,23 @@ public class OutboxEvent {
         event.aggregateType = aggregateType;
         event.aggregateId = aggregateId;
         event.payload = payload;
-        event.published = false;
+        event.status = OutboxEventStatus.PENDING;
+        event.retryCount = 0;
         event.createdAt = LocalDateTime.now();
         return event;
     }
 
     public void markPublished() {
-        this.published = true;
+        this.status = OutboxEventStatus.PUBLISHED;
         this.publishedAt = LocalDateTime.now();
+        this.lastError = null;
     }
+
+    public void markFailed(String errorMessage) {
+        this.status = OutboxEventStatus.FAILED;
+        this.retryCount++;
+        this.lastError = errorMessage;
+        this.lastTriedAt = LocalDateTime.now();
+    }
+
 }

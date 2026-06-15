@@ -7,6 +7,7 @@ import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEventType;
 import com.limitedgoods.limitedgoods.event.outbox.repository.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -35,5 +36,21 @@ public class OutboxEventService {
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Outbox event serialization failed", e);
         }
+    }
+
+    @Transactional
+    public void markPublished(Long eventId) {
+        OutboxEvent event = outboxEventRepository.findById(eventId)
+                .orElseThrow();
+
+        event.markPublished();
+    }
+
+    @Transactional
+    public void markFailed(Long eventId, Throwable ex) {
+        OutboxEvent event = outboxEventRepository.findById(eventId)
+                .orElseThrow();
+
+        event.markFailed(ex.getMessage());
     }
 }
