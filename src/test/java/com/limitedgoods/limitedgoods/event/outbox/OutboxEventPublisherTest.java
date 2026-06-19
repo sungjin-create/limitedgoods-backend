@@ -1,5 +1,6 @@
-package com.limitedgoods.limitedgoods.publisher;
+package com.limitedgoods.limitedgoods.event.outbox;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEvent;
 import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEventStatus;
 import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEventType;
@@ -22,11 +23,13 @@ class OutboxEventPublisherTest {
     private final OutboxEventRepository outboxEventRepository = mock(OutboxEventRepository.class);
     private final KafkaTemplate<String, String> kafkaTemplate = mock(KafkaTemplate.class);
     private final OutboxEventService outboxEventService = mock(OutboxEventService.class);
+    private final ObjectMapper objectMapper = mock(ObjectMapper.class);
 
     private final OutboxEventPublisher publisher = new OutboxEventPublisher(
             outboxEventRepository,
             kafkaTemplate,
-            outboxEventService
+            outboxEventService,
+            objectMapper
     );
 
     @Test
@@ -120,5 +123,25 @@ class OutboxEventPublisherTest {
                 eq(List.of(OutboxEventStatus.PENDING, OutboxEventStatus.FAILED)),
                 eq(5)
         );
+    }
+
+    @Test
+    @DisplayName("retryLimit 이상 실패한 이벤트는 발행 대상에서 제외된다")
+    void publish_excludeRetryLimitExceeded() {
+        // given
+        when(outboxEventRepository.findTop100ByStatusInAndRetryCountLessThanOrderByCreatedAtAsc(
+                anyList(),
+                anyInt()
+        )).thenReturn(List.of());
+
+        // when
+        publisher.publish();
+
+        // then
+        verify(outboxEventRepository)
+                .findTop100ByStatusInAndRetryCountLessThanOrderByCreatedAtAsc(
+                        eq(List.of(OutboxEventStatus.PENDING, OutboxEventStatus.FAILED)),
+                        eq(5)
+                );
     }
 }
