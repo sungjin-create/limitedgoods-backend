@@ -31,8 +31,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         select o
         from Order o
         where o.id = :id
+          and o.user.id = :userId
         """)
-    Optional<Order> findByIdForUpdate(@Param("id") Long id);
+    Optional<Order> findByIdForUpdate(@Param("id") Long id, @Param("userid") Long userId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
@@ -50,7 +51,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     );
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.order.dto.AdminOrderResponseDto(
+    select new AdminOrderResponseDto(
         o.id,
         u.id,
         u.email,
@@ -83,7 +84,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     );
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.order.dto.AdminOrderResponseDto(
+    select new AdminOrderResponseDto(
         o.id,
         u.id,
         u.email,
@@ -108,7 +109,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     );
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.order.dto.OrderDetailResponseDto(
+    select new OrderDetailResponseDto(
         o.id,
         o.totalPrice,
         o.status,

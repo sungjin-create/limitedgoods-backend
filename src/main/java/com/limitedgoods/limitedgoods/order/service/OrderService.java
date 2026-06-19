@@ -261,7 +261,7 @@ public class OrderService {
     }
 
     private Order getOrderForUpdate(Long orderId, Long userId) {
-        Order order = orderRepository.findByIdForUpdate(orderId)
+        Order order = orderRepository.findByIdForUpdate(orderId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
         if (!order.getUser().getId().equals(userId)) {
