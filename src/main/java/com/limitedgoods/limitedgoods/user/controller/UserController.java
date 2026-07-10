@@ -19,9 +19,7 @@ public class UserController {
 
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse> userSignUp(@RequestBody UserSignUpRequest userSignUpRequest) {
-
         String userEmail = userService.signUpUsers(userSignUpRequest);
-
         return ResponseEntity.ok(ApiResponse.success(new UserSignUpResponse(userEmail)));
     }
 
@@ -33,13 +31,11 @@ public class UserController {
     @GetMapping("/info")
     public ResponseEntity<ApiResponse> userInfo(Authentication authentication) {
         String email = authentication.getName();
-
         return ResponseEntity.ok(ApiResponse.success(userService.getUserInfo(email)));
     }
 
     @GetMapping("/test")
     public ResponseEntity<ApiResponse> test() {
-
         return ResponseEntity.ok(ApiResponse.success("test"));
     }
 
