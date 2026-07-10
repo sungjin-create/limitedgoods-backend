@@ -2,6 +2,8 @@ package com.limitedgoods.limitedgoods.product.repository;
 
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -36,5 +38,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
      where p.id = :id
     """)
     int increaseStock(@Param("id") Long id, @Param("quantity") int quantity);
+
+    @Query("""
+        select p
+        from Product p
+        where upper(p.name) like upper(concat('%', :keyword, '%'))
+            or upper(p.description) like upper(concat('%', :keyword, '%'))
+    """)
+    Page<Product> searchByKeyword(Pageable pageable, @Param("keyword") String keyword);
 
 }

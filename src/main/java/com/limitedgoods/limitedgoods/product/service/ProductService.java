@@ -87,6 +87,11 @@ public class ProductService {
                 .map(this::toResponse);
     }
 
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDTO> searchProduct(Pageable pageable, String keyword) {
+        return productRepository.searchByKeyword(pageable, keyword).map(this::toResponse);
+    }
+
     private ProductResponseDTO toResponse(Product product) {
         return ProductResponseDTO.builder()
                 .id(product.getId())
