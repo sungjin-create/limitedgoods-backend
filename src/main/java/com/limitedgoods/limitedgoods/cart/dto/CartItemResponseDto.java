@@ -13,8 +13,8 @@ import java.time.LocalDateTime;
 @Builder
 public class CartItemResponseDto {
     private Long id;
-    private Cart cart;
-    private Product product;
+    private Long productId;
+    private String productName;
     private int quantity;
     private int price;
     private LocalDateTime createdAt;

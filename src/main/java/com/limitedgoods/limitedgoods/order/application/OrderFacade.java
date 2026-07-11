@@ -1,8 +1,10 @@
 package com.limitedgoods.limitedgoods.order.application;
 
+import com.limitedgoods.limitedgoods.cart.service.CartService;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.idempotency.service.PaymentIdempotencyService;
+import com.limitedgoods.limitedgoods.order.dto.OrderItemsListDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderPaymentInfo;
 import com.limitedgoods.limitedgoods.order.dto.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderResponseDto;
@@ -22,6 +24,9 @@ import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -32,6 +37,7 @@ public class OrderFacade {
     private final PaymentService paymentService;
     private final RedisReservationService redisReservationService;
     private final PaymentIdempotencyService paymentIdempotencyService;
+    private final CartService cartService;
     private final MeterRegistry  meterRegistry;
 
     private final long EXPIRED_SECONDS = 300;
@@ -52,18 +58,32 @@ public class OrderFacade {
     }
 
     public OrderResponseDto createOrder(Long userId, OrderRequestDto request) {
-        Long productId = request.getProductId();
-        int quantity = request.getQuantity();
 
-        redisStockService.decreaseStock(productId, quantity);
+        List<OrderItemsListDto> items = request.getItems();
+        List<OrderItemsListDto> decreasedItems = new ArrayList<>();
 
         try {
-            OrderResponseDto order = orderService.createOrder(userId, request, EXPIRED_SECONDS);
-            redisReservationService.createReservation(order.getId(), productId, quantity, EXPIRED_SECONDS);
+            for (OrderItemsListDto item : items) {
+                redisStockService.decreaseStock(item.getProductId(), item.getQuantity());
+                decreasedItems.add(item);
+            }
+        } catch (BusinessException e) {
+            for (OrderItemsListDto compensate : decreasedItems) {
+                redisStockService.increaseStock(compensate.getProductId(), compensate.getQuantity());
+            }
+            meterRegistry.counter("order.created", "result", "fail").increment();
+            throw e;
+        }
+
+        try {
+            OrderResponseDto order = orderService.createOrder(userId, items, EXPIRED_SECONDS);
+            redisReservationService.createReservation(order.getId(), items, EXPIRED_SECONDS);
             meterRegistry.counter("order.created", "result", "success").increment();
             return order;
         } catch (RuntimeException e) {
-            redisStockService.increaseStock(productId, quantity);
+            for (OrderItemsListDto compensate : decreasedItems) {
+                redisStockService.increaseStock(compensate.getProductId(), compensate.getQuantity());
+            }
             meterRegistry.counter("order.created", "result", "fail").increment();
             throw e;
         }
@@ -121,6 +141,14 @@ public class OrderFacade {
             // 10. Redis 예약키 삭제 및 멱등성 응답 저장
             redisReservationService.deleteReservation(orderId);
             paymentIdempotencyService.saveResponse(userId, orderId, idempotencyKey, response);
+
+            // 11. 장바구니 비우기 (실패해도 결제 결과에 영향 없음)
+            try {
+                cartService.clearCart(userId);
+            } catch (Exception e) {
+                log.warn("[장바구니 비우기 실패] orderId={}, userId={}", orderId, userId, e);
+            }
+
             meterRegistry.counter("payment.result", "status", "success").increment();
             return response;
 

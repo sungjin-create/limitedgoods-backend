@@ -4,12 +4,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
+import com.limitedgoods.limitedgoods.order.dto.OrderItemsListDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -19,8 +21,9 @@ public class RedisReservationService {
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
 
-    public void createReservation(Long orderId, Long productId, int quantity, long ttlSeconds) {
-        ReservationPayload payload = new ReservationPayload(orderId, productId, quantity);
+    public void createReservation(Long orderId, List<OrderItemsListDto> items, long ttlSeconds) {
+
+        ReservationPayload payload = new ReservationPayload(orderId, items);
 
         try {
             String key = "reservation:order:" + orderId;
@@ -30,20 +33,18 @@ public class RedisReservationService {
         } catch (JsonProcessingException e) {
             log.error(
                     "event=redis_reservation_serialization_failed component=redis " +
-                            "orderId={} productId={} quantity={}",
+                            "orderId={} orderItemsList={}",
                     orderId,
-                    productId,
-                    quantity,
+                    items,
                     e
             );
             throw new IllegalStateException("예약 정보 직렬화 실패", e);
         } catch (Exception e) {
             log.error(
                     "event=redis_reservation_create_failed component=redis " +
-                            "orderId={} productId={} quantity={}",
+                            "orderId={} orderItemsList={}",
                     orderId,
-                    productId,
-                    quantity,
+                    items,
                     e
             );
             throw e;

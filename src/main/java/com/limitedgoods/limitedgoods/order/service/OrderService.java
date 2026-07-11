@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -56,34 +57,40 @@ public class OrderService {
     @Transactional(readOnly = true)
     public OrderDetailResponseDto getOrderDetail(Long userId, Long orderId) {
         Order order = getOrder(orderId, userId);
-        OrderItem item = orderItemRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-        return toDetailResponse(order, item);
+        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
+        if (items.isEmpty()) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
+        return toDetailResponse(order, items.get(0));
     }
 
     @Transactional
-    public OrderResponseDto createOrder(Long userId, OrderRequestDto dto, long reservationSeconds) {
+    public OrderResponseDto createOrder(Long userId, List<OrderItemsListDto> items, long reservationSeconds) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        Product product = productRepository.findById(dto.getProductId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
+        int totalPrice = 0;
+        List<OrderItem> orderItems = new ArrayList<>();
 
-        int totalPrice = product.getPrice() * dto.getQuantity();
+        for (OrderItemsListDto item : items) {
+            Product product = productRepository.findById(item.getProductId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
+
+            totalPrice += product.getPrice() * item.getQuantity();
+            orderItems.add(OrderItem.builder()
+                    .product(product)
+                    .quantity(item.getQuantity())
+                    .price(product.getPrice())
+                    .build());
+        }
 
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(reservationSeconds);
 
         Order order = Order.create(user, totalPrice, expiresAt);
         Order savedOrder = orderRepository.save(order);
 
-        OrderItem orderItem = OrderItem.builder()
-                .order(savedOrder)
-                .product(product)
-                .quantity(dto.getQuantity())
-                .price(product.getPrice())
-                .build();
-
-        orderItemRepository.save(orderItem);
+        for (OrderItem orderItem : orderItems) {
+            orderItem.setOrder(savedOrder);
+            orderItemRepository.save(orderItem);
+        }
 
         return toResponse(savedOrder);
     }
@@ -91,33 +98,14 @@ public class OrderService {
     @Transactional(readOnly = true)
     public OrderPaymentInfo getPaymentInfo(Long userId, Long orderId) {
         Order order = getOrder(orderId, userId);
-        OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        return new OrderPaymentInfo(
-                order.getId(),
-                orderItem.getProduct().getId(),
-                orderItem.getQuantity(),
-                order.getTotalPrice(),
-                order.getStatus()
-        );
+        return new OrderPaymentInfo(order.getId(), order.getTotalPrice(), order.getStatus());
     }
 
     @Transactional
     public OrderPaymentInfo startPayment(Long userId, Long orderId) {
         Order order = getOrderForUpdate(orderId, userId);
         order.markPaymentPending();
-
-        OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        return new OrderPaymentInfo(
-                order.getId(),
-                orderItem.getProduct().getId(),
-                orderItem.getQuantity(),
-                order.getTotalPrice(),
-                order.getStatus()
-        );
+        return new OrderPaymentInfo(order.getId(), order.getTotalPrice(), order.getStatus());
     }
 
     @Transactional
@@ -145,16 +133,17 @@ public class OrderService {
             throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
         }
 
-        OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+        if (orderItems.isEmpty()) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
 
-        int updated = productRepository.decreaseStock(
-                orderItem.getProduct().getId(),
-                orderItem.getQuantity()
-        );
-
-        if (updated == 0) {
-            throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
+        for (OrderItem orderItem : orderItems) {
+            int updated = productRepository.decreaseStock(
+                    orderItem.getProduct().getId(),
+                    orderItem.getQuantity()
+            );
+            if (updated == 0) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
+            }
         }
 
         order.markPaid();
@@ -187,21 +176,18 @@ public class OrderService {
             return;
         }
 
-        OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+        if (orderItems.isEmpty()) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
 
-        redisStockService.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
+        for (OrderItem orderItem : orderItems) {
+            redisStockService.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
+        }
         redisReservationService.deleteReservation(orderId);
         outboxEventService.save(
                 OutboxEventType.ORDER_EXPIRED,
                 "ORDER",
                 orderId,
-                new OrderExpiredEvent(
-                        orderId,
-                        orderItem.getProduct().getId(),
-                        orderItem.getQuantity(),
-                        LocalDateTime.now()
-                )
+                new OrderExpiredEvent(orderId, LocalDateTime.now())
         );
         meterRegistry.counter("order.expired").increment();
     }
@@ -287,18 +273,13 @@ public class OrderService {
             throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
         }
 
-        OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+        if (orderItems.isEmpty()) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
 
-        productRepository.increaseStock(
-                orderItem.getProduct().getId(),
-                orderItem.getQuantity()
-        );
-
-        redisStockService.increaseStock(
-                orderItem.getProduct().getId(),
-                orderItem.getQuantity()
-        );
+        for (OrderItem orderItem : orderItems) {
+            productRepository.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
+            redisStockService.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
+        }
 
         order.cancelPaidOrder();
 
@@ -331,16 +312,7 @@ public class OrderService {
 
         order.requestCancel();
 
-        OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        return new OrderPaymentInfo(
-                order.getId(),
-                orderItem.getProduct().getId(),
-                orderItem.getQuantity(),
-                order.getTotalPrice(),
-                order.getStatus()
-        );
+        return new OrderPaymentInfo(order.getId(), order.getTotalPrice(), order.getStatus());
     }
 
     @Transactional
@@ -356,18 +328,13 @@ public class OrderService {
             throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
         }
 
-        OrderItem orderItem = orderItemRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+        if (orderItems.isEmpty()) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
 
-        productRepository.increaseStock(
-                orderItem.getProduct().getId(),
-                orderItem.getQuantity()
-        );
-
-        redisStockService.increaseStock(
-                orderItem.getProduct().getId(),
-                orderItem.getQuantity()
-        );
+        for (OrderItem orderItem : orderItems) {
+            productRepository.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
+            redisStockService.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
+        }
 
         order.markRefunded();
 
@@ -375,13 +342,7 @@ public class OrderService {
                 OutboxEventType.ORDER_CANCELED,
                 "ORDER",
                 order.getId(),
-                new OrderCanceledEvent(
-                        order.getId(),
-                        userId,
-                        orderItem.getProduct().getId(),
-                        orderItem.getQuantity(),
-                        LocalDateTime.now()
-                )
+                new OrderCanceledEvent(order.getId(), userId, LocalDateTime.now())
         );
 
         return toResponse(order);
