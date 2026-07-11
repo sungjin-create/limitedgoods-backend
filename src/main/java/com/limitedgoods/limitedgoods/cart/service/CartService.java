@@ -63,13 +63,15 @@ public class CartService {
             throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
         }
 
-        int price = product.getPrice() * quantity;
+        int price = product.getPrice();
+        int totalPrice = price * quantity;
 
         CartItem cartItem = cartItemRepository.save(
                 CartItem.builder()
                         .cart(cart)
                         .product(product)
                         .price(price)
+                        .totalPrice(totalPrice)
                         .quantity(quantity)
                         .createdAt(LocalDateTime.now())
                         .updatedAt(LocalDateTime.now())
@@ -97,9 +99,10 @@ public class CartService {
             throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
         }
 
-        int price = product.getPrice() * quantity;
+        int price = product.getPrice();
+        int totalPrice = price * quantity;
 
-        cartItem.updateQuantityAndPrice(quantity, price);
+        cartItem.updateQuantityAndPrice(quantity, price, totalPrice);
     }
 
     @Transactional
@@ -144,6 +147,7 @@ public class CartService {
                 .productName(cartItem.getProduct().getName())
                 .price(cartItem.getPrice())
                 .quantity(cartItem.getQuantity())
+                .totalPrice(cartItem.getTotalPrice())
                 .createdAt(cartItem.getCreatedAt())
                 .updatedAt(cartItem.getUpdatedAt())
                 .build();
