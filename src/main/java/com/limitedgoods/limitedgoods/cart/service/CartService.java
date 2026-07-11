@@ -117,7 +117,18 @@ public class CartService {
 
     }
 
+    @Transactional
+    public void clearCart(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        cartRepository.findByUser(user).ifPresent(cart ->
+                cartItemRepository.deleteAll(cartItemRepository.findCartItemByCart(cart))
+        );
+    }
+
     private Cart createCart(User user){
+
         return cartRepository.save(Cart.builder()
                         .user(user)
                         .created_at(LocalDateTime.now())
@@ -129,9 +140,9 @@ public class CartService {
 
         return CartItemResponseDto.builder()
                 .id(cartItem.getId())
-                .cart(cartItem.getCart())
+                .productId(cartItem.getProduct().getId())
+                .productName(cartItem.getProduct().getName())
                 .price(cartItem.getPrice())
-                .product(cartItem.getProduct())
                 .quantity(cartItem.getQuantity())
                 .createdAt(cartItem.getCreatedAt())
                 .updatedAt(cartItem.getUpdatedAt())
