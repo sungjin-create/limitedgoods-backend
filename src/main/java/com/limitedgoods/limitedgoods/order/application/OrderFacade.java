@@ -8,14 +8,14 @@ import com.limitedgoods.limitedgoods.order.dto.OrderItemsListDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderPaymentInfo;
 import com.limitedgoods.limitedgoods.order.dto.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderResponseDto;
-import com.limitedgoods.limitedgoods.order.reservation.ReservationPayload;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
-import com.limitedgoods.limitedgoods.order.service.OrderService;
 import com.limitedgoods.limitedgoods.order.reservation.RedisReservationService;
-import com.limitedgoods.limitedgoods.stock.service.RedisStockService;
+import com.limitedgoods.limitedgoods.order.reservation.ReservationPayload;
+import com.limitedgoods.limitedgoods.order.service.OrderService;
 import com.limitedgoods.limitedgoods.payment.dto.PaymentRequestDto;
 import com.limitedgoods.limitedgoods.payment.service.PaymentFailedException;
 import com.limitedgoods.limitedgoods.payment.service.PaymentService;
+import com.limitedgoods.limitedgoods.stock.service.RedisStockService;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +59,25 @@ public class OrderFacade {
 
     public OrderResponseDto createOrder(Long userId, OrderRequestDto request) {
 
+        String checkoutToken = request.getCheckoutToken();
+        if(checkoutToken == null) {
+            throw new BusinessException(ErrorCode.HAS_NO_CHECKOUT_TOKEN);
+        }
+
+        //토큰이 같은경우 CREATED, PAYMENT_PENDING, PAYMENT_APPROVED, PAYMENT_FAILED -> 기존 주문 반환
+        OrderResponseDto existing = orderService.findActiveOrderByCheckoutToken(userId, checkoutToken);
+        if (existing != null) {
+            return existing;
+        }
+
+        /*
+        토큰이 다른경우 기존에 진행중인 주문이 있는지 검사 (1인 1주문 원칙)
+        - CREATED, PAYMENT_FAILED-> 재고 복구 및 기존주문 EXPIRED
+        - PAYMENT_PENDING, PAYMENT_APPROVED -> 주문 생성 X, 이미 처리중인 주문이 있음
+        - 나머지 STATUS -> 새 주문 생성
+         */
+        orderService.cancelActivePendingOrder(userId);
+
         List<OrderItemsListDto> items = request.getItems();
         List<OrderItemsListDto> decreasedItems = new ArrayList<>();
 
@@ -76,7 +95,7 @@ public class OrderFacade {
         }
 
         try {
-            OrderResponseDto order = orderService.createOrder(userId, items, EXPIRED_SECONDS);
+            OrderResponseDto order = orderService.createOrder(userId, items, EXPIRED_SECONDS, checkoutToken);
             redisReservationService.createReservation(order.getId(), items, EXPIRED_SECONDS);
             meterRegistry.counter("order.created", "result", "success").increment();
             return order;

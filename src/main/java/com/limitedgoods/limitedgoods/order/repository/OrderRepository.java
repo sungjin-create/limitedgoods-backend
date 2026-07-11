@@ -129,4 +129,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<OrderDetailResponseDto> findMyOrderDetails(
             @Param("userId") Long userId
     );
+
+    boolean existsOrderByUserIdAndCheckoutTokenAndStatusIn(Long userId, String checkoutToken, List<OrderStatus> statusList);
+
+    Optional<Order> findOrderByUserIdAndCheckoutTokenAndStatusIn(Long userId, String checkoutToken, List<OrderStatus> statusList);
+
+    List<Order> findOrderByUserIdAndStatusIn(Long userId, List<OrderStatus> orderStatusList);
 }

@@ -41,7 +41,9 @@ public class Order {
     private LocalDateTime refundedAt;
     private String cancelFailReason;
 
-    public static Order create(User user, int totalPrice, LocalDateTime expiresAt) {
+    private String checkoutToken;
+
+    public static Order create(User user, int totalPrice, LocalDateTime expiresAt, String checkoutToken) {
         LocalDateTime now = LocalDateTime.now();
 
         return Order.builder()
@@ -51,6 +53,7 @@ public class Order {
                 .createdAt(now)
                 .updatedAt(now)
                 .expiresAt(expiresAt)
+                .checkoutToken(checkoutToken)
                 .build();
     }
 
@@ -73,6 +76,7 @@ public class Order {
 
         this.status = OrderStatus.EXPIRED;
         this.updatedAt = LocalDateTime.now();
+        this.checkoutToken = null;
     }
 
     public void markPaid() {
@@ -96,12 +100,14 @@ public class Order {
         validateCurrentStatus(OrderStatus.PAID);
         this.status = OrderStatus.CANCELED;
         this.updatedAt = LocalDateTime.now();
+        this.checkoutToken = null;
     }
 
-    public void complete() {
+    public void markComplete() {
         validateCurrentStatus(OrderStatus.PAID);
         this.status = OrderStatus.COMPLETED;
         this.updatedAt = LocalDateTime.now();
+        this.checkoutToken = null;
     }
 
     private void validateCurrentStatus(OrderStatus expected) {
@@ -123,6 +129,7 @@ public class Order {
         this.cancelRequestedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
         this.cancelFailReason = null;
+        this.checkoutToken = null;
     }
 
     public void markRefunded() {
@@ -135,6 +142,7 @@ public class Order {
         this.refundedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
         this.cancelFailReason = null;
+        this.checkoutToken = null;
     }
 
     public void markCancelFailed(String reason) {
@@ -143,5 +151,6 @@ public class Order {
         this.status = OrderStatus.CANCEL_FAILED;
         this.cancelFailReason = reason;
         this.updatedAt = LocalDateTime.now();
+        this.checkoutToken = null;
     }
 }

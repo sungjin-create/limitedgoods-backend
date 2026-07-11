@@ -11,5 +11,7 @@ import java.util.List;
 @Builder
 public class OrderRequestDto {
 
+    private String checkoutToken;
+
     private List<OrderItemsListDto> items;
 }

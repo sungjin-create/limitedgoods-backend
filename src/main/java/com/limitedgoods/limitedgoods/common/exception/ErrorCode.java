@@ -61,6 +61,12 @@ public enum ErrorCode {
             "현재 주문 상태에서는 취소할 수 없습니다."
     ),
 
+    ORDER_STARTING_PAYMENT(
+            HttpStatus.BAD_REQUEST,
+            "ORDER_005",
+            "현재 결제 진행중인 주문이 있습니다."
+    ),
+
     PAYMENT_FAILED(
             HttpStatus.BAD_REQUEST,
             "PAYMENT_001",
@@ -98,6 +104,11 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST,
             "CART_ITEM_002",
             "ITEM이 이미 장바구니에 담겨있습니다."
+    ),
+    HAS_NO_CHECKOUT_TOKEN(
+            HttpStatus.BAD_REQUEST,
+            "CHECKOUT_TOKEN_001",
+            "CHECKOUT_TOKEN이 없습니다."
     )
     ;
 
