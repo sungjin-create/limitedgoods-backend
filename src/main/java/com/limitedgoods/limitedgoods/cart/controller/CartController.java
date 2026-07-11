@@ -1,9 +1,6 @@
 package com.limitedgoods.limitedgoods.cart.controller;
 
-import com.limitedgoods.limitedgoods.cart.dto.CartItemResponseDto;
-import com.limitedgoods.limitedgoods.cart.dto.CartRequestDto;
-import com.limitedgoods.limitedgoods.cart.dto.CartResponseDto;
-import com.limitedgoods.limitedgoods.cart.entity.CartItem;
+import com.limitedgoods.limitedgoods.cart.dto.*;
 import com.limitedgoods.limitedgoods.cart.service.CartService;
 import com.limitedgoods.limitedgoods.common.response.ApiResponse;
 import com.limitedgoods.limitedgoods.security.user.CustomUserDetails;
@@ -31,13 +28,33 @@ public class CartController {
 
     @PostMapping("/item/add")
     public ResponseEntity<ApiResponse<CartItemResponseDto>> addToCart(
-            @RequestBody CartRequestDto cartRequestDto,
-            @AuthenticationPrincipal CustomUserDetails customUserDetails
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @RequestBody CartItemRequestDto cartItemRequestDto
     ){
         Long userId = customUserDetails.getUserId();
-        Long productId = cartRequestDto.getProductId();
-        int quantity = cartRequestDto.getQuantity();
+        Long productId = cartItemRequestDto.getProductId();
+        int quantity = cartItemRequestDto.getQuantity();
         CartItemResponseDto cartItemResponseDto = cartService.addToCart(userId, productId, quantity);
         return ResponseEntity.ok(ApiResponse.success(cartItemResponseDto));
+    }
+
+    @PostMapping("/item/update")
+    public ResponseEntity<ApiResponse<CartItemResponseDto>> updateCartItem(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @RequestBody CartItemUpdateRequestDto cartItemUpdateRequestDto
+    ){
+        Long userId = customUserDetails.getUserId();
+        Long cartItemId = cartItemUpdateRequestDto.getCartItemId();
+        int quantity = cartItemUpdateRequestDto.getQuantity();
+        cartService.updateCartItem(userId, cartItemId, quantity);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @DeleteMapping("/item")
+    public ResponseEntity<ApiResponse> deleteCartItem(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @RequestParam Long cartItemId){
+        cartService.deleteCartItem(cartItemId, customUserDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.success());
     }
 }

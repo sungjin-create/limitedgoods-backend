@@ -39,4 +39,9 @@ public class CartItem {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    public void updateQuantityAndPrice(int quantity, int price){
+        this.quantity = quantity;
+        this.price = price;
+    }
+
 }

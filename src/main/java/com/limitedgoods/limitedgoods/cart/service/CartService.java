@@ -1,7 +1,6 @@
 package com.limitedgoods.limitedgoods.cart.service;
 
 import com.limitedgoods.limitedgoods.cart.dto.CartItemResponseDto;
-import com.limitedgoods.limitedgoods.cart.dto.CartResponseDto;
 import com.limitedgoods.limitedgoods.cart.entity.Cart;
 import com.limitedgoods.limitedgoods.cart.entity.CartItem;
 import com.limitedgoods.limitedgoods.cart.repository.CartItemRepository;
@@ -15,7 +14,6 @@ import com.limitedgoods.limitedgoods.user.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.bytebuddy.asm.Advice;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -48,8 +46,6 @@ public class CartService {
 
     @Transactional
     public CartItemResponseDto addToCart(Long userId, Long productId, int quantity){
-        //기존에 사용자 아이디로 카트가 만들어져있으면 해당 카트에 insert
-        //기존 카트가 없다면 새로운 카트를 만든후 insert
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
@@ -58,6 +54,10 @@ public class CartService {
 
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
+
+        if (cartItemRepository.existsCartItemByProduct(product)) {
+            throw new BusinessException(ErrorCode.CART_ITEM_ALREADY_ADD);
+        }
 
         if(product.getStock() < quantity) {
             throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
@@ -79,6 +79,44 @@ public class CartService {
         return toCartItemResponseDto(cartItem);
     }
 
+    @Transactional
+    public void updateCartItem(Long userId, Long cartItemId, int quantity) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        Cart cart = cartRepository.findByUser(user)
+                .orElseGet(()->createCart(user));
+
+        CartItem cartItem = cartItemRepository.findById(cartItemId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CART_ITEM_NOT_FOUND));
+
+        Product product = productRepository.findById(cartItem.getProduct().getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
+
+        if(product.getStock() < quantity) {
+            throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
+        }
+
+        int price = product.getPrice() * quantity;
+
+        cartItem.updateQuantityAndPrice(quantity, price);
+    }
+
+    @Transactional
+    public void deleteCartItem(Long cartItemId, Long userId){
+        User user = userRepository.findById(userId)
+                .orElseThrow(()-> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        cartRepository.findByUser(user)
+                .orElseThrow(()-> new BusinessException(ErrorCode.CART_NOT_FOUND));
+
+        cartItemRepository.findById(cartItemId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CART_ITEM_NOT_FOUND));
+
+        cartItemRepository.deleteById(cartItemId);
+
+    }
+
     private Cart createCart(User user){
         return cartRepository.save(Cart.builder()
                         .user(user)
@@ -91,9 +129,9 @@ public class CartService {
 
         return CartItemResponseDto.builder()
                 .id(cartItem.getId())
-                .cartId(cartItem.getCart().getId())
+                .cart(cartItem.getCart())
                 .price(cartItem.getPrice())
-                .productId(cartItem.getProduct().getId())
+                .product(cartItem.getProduct())
                 .quantity(cartItem.getQuantity())
                 .createdAt(cartItem.getCreatedAt())
                 .updatedAt(cartItem.getUpdatedAt())

@@ -33,6 +33,15 @@ public class ApiResponse<T> {
         );
     }
 
+    public static <T> ApiResponse<T> success() {
+        return new ApiResponse<>(
+                true,
+                "SUCCESS",
+                "요청성공",
+                null
+        );
+    }
+
     public static ApiResponse<Void> fail(
             String code,
             String message

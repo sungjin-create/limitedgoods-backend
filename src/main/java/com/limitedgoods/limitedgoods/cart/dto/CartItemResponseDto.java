@@ -1,5 +1,7 @@
 package com.limitedgoods.limitedgoods.cart.dto;
 
+import com.limitedgoods.limitedgoods.cart.entity.Cart;
+import com.limitedgoods.limitedgoods.product.entity.Product;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -11,8 +13,8 @@ import java.time.LocalDateTime;
 @Builder
 public class CartItemResponseDto {
     private Long id;
-    private Long cartId;
-    private Long productId;
+    private Cart cart;
+    private Product product;
     private int quantity;
     private int price;
     private LocalDateTime createdAt;

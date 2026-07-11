@@ -81,6 +81,23 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST,
             "PAYMENT_004",
             "결제 취소에 실패했습니다."
+    ),
+
+    CART_NOT_FOUND(
+            HttpStatus.BAD_REQUEST,
+            "CART_001",
+            "CART를 찾을 수 없습니다."
+    ),
+
+    CART_ITEM_NOT_FOUND(
+            HttpStatus.BAD_REQUEST,
+            "CART_ITEM_001",
+            "ITEM을 찾을 수 없습니다."
+    ),
+    CART_ITEM_ALREADY_ADD(
+            HttpStatus.BAD_REQUEST,
+            "CART_ITEM_002",
+            "ITEM이 이미 장바구니에 담겨있습니다."
     )
     ;
 
