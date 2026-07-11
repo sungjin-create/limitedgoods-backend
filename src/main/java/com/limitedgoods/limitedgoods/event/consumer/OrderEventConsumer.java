@@ -7,6 +7,7 @@ import com.limitedgoods.limitedgoods.event.processed.entity.ProcessedEvent;
 import com.limitedgoods.limitedgoods.event.processed.repository.ProcessedEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,31 +27,54 @@ public class OrderEventConsumer {
             groupId = CONSUMER_GROUP
     )
     @Transactional
-    public void consume(String message) throws JsonProcessingException {
-        KafkaEventEnvelope envelope =
-                objectMapper.readValue(message, KafkaEventEnvelope.class);
+    public void consume(ConsumerRecord<String, String> record){
+        KafkaEventEnvelope envelope = null;
 
-        if (processedEventRepository.existsByEventIdAndConsumerGroup(
-                envelope.eventId(),
-                CONSUMER_GROUP
-        )) {
-            log.info("이미 처리된 Kafka 이벤트입니다. eventId={}", envelope.eventId());
-            return;
+        try {
+            envelope = objectMapper.readValue(
+                    record.value(),
+                    KafkaEventEnvelope.class
+            );
+
+            if (processedEventRepository.existsByEventIdAndConsumerGroup(envelope.eventId(), CONSUMER_GROUP )) {
+                return;
+            }
+
+            processBusinessLogic(envelope);
+
+            processedEventRepository.save(
+                    ProcessedEvent.create(
+                            envelope.eventId(),
+                            CONSUMER_GROUP
+                    )
+            );
+
+        } catch (JsonProcessingException e) {
+            log.error(
+                    "event=kafka_consume_failed component=kafka-consumer " +
+                            "eventId={} consumerGroup={} topic={} partition={} offset={}",
+                    envelope != null ? envelope.eventId() : null,
+                    CONSUMER_GROUP,
+                    record.topic(),
+                    record.partition(),
+                    record.offset(),
+                    e
+            );
+            throw new IllegalStateException("Kafka 메시지 역직렬화 실패");
+        } catch (Exception e) {
+            log.error(
+                    "event=kafka_consume_failed component=kafka-consumer " +
+                            "eventId={} consumerGroup={} topic={} partition={} offset={}",
+                    envelope != null ? envelope.eventId() : null,
+                    CONSUMER_GROUP,
+                    record.topic(),
+                    record.partition(),
+                    record.offset(),
+                    e
+            );
+
+            throw e;
         }
-
-        log.info("Kafka 이벤트 처리 시작. eventId={}, eventType={}",
-                envelope.eventId(),
-                envelope.eventType());
-
-        // 여기서 실제 후속 처리
-        // 예: 알림 저장, 로그 저장, 이메일 발송 요청 등
-        processBusinessLogic(envelope);
-
-        processedEventRepository.save(
-                ProcessedEvent.create(envelope.eventId(), CONSUMER_GROUP)
-        );
-
-        log.info("Kafka 이벤트 처리 완료. eventId={}", envelope.eventId());
     }
 
     private void processBusinessLogic(KafkaEventEnvelope envelope) {

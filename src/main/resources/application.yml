@@ -68,10 +68,7 @@ management:
 logging:
   level:
     root: INFO
-
     com.limitedgoods: DEBUG
-
     org.hibernate.SQL: DEBUG
     org.hibernate.orm.jdbc.bind: TRACE
-
     org.springframework.security: WARN

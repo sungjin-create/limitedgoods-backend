@@ -3,12 +3,14 @@ package com.limitedgoods.limitedgoods.stock.service;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RedisStockService {
@@ -43,23 +45,66 @@ public class RedisStockService {
 
     // 재고 차감 (원자적)
     public void decreaseStock(Long productId, int quantity) {
-        Long result = redisTemplate.execute(
-                DECREASE_REDIS_SCRIPT,
-                List.of(stockKey(productId)),
-                String.valueOf(quantity)
-        );
+        try {
+            Long result = redisTemplate.execute(
+                    DECREASE_REDIS_SCRIPT,
+                    List.of(stockKey(productId)),
+                    String.valueOf(quantity)
+            );
 
-        if (result == null || result < 0) {
-            throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
+            if (result == null) {
+                log.error(
+                        "event=redis_stock_decrease_null component=redis " +
+                                "productId={} quantity={}",
+                        productId,
+                        quantity
+                );
+
+                throw new IllegalStateException("Redis 재고 차감 결과가 null입니다.");
+            }
+
+            if (result < 0) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
+            }
+
+        }catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error(
+                    "event=redis_stock_decrease_failed component=redis " +
+                            "productId={} quantity={}",
+                    productId,
+                    quantity,
+                    e
+            );
+
+            throw e;
         }
     }
 
     // 보상용 재고 복구
     public void increaseStock(Long productId, int quantity) {
-        redisTemplate.execute(
-                INCREASE_REDIS_SCRIPT,
-                List.of(stockKey(productId)),
-                String.valueOf(quantity)
-        );
+        try {
+            Long result = redisTemplate.execute(
+                    INCREASE_REDIS_SCRIPT,
+                    List.of(stockKey(productId)),
+                    String.valueOf(quantity)
+            );
+
+            if (result == null) {
+                throw new IllegalStateException("Redis 재고 복구 결과가 null입니다.");
+            }
+
+        } catch (Exception e) {
+            log.error(
+                    "event=redis_stock_compensation_failed component=redis " +
+                            "productId={} quantity={}",
+                    productId,
+                    quantity,
+                    e
+            );
+
+            throw e;
+        }
     }
 }

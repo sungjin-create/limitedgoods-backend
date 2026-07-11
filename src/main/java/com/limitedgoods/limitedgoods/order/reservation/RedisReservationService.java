@@ -5,11 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RedisReservationService {
@@ -26,7 +28,25 @@ public class RedisReservationService {
 
             redisTemplate.opsForValue().set(key, value, Duration.ofSeconds(ttlSeconds));
         } catch (JsonProcessingException e) {
+            log.error(
+                    "event=redis_reservation_serialization_failed component=redis " +
+                            "orderId={} productId={} quantity={}",
+                    orderId,
+                    productId,
+                    quantity,
+                    e
+            );
             throw new IllegalStateException("예약 정보 직렬화 실패", e);
+        } catch (Exception e) {
+            log.error(
+                    "event=redis_reservation_create_failed component=redis " +
+                            "orderId={} productId={} quantity={}",
+                    orderId,
+                    productId,
+                    quantity,
+                    e
+            );
+            throw e;
         }
     }
 

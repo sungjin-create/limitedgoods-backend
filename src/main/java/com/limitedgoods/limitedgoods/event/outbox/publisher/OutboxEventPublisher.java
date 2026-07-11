@@ -60,11 +60,28 @@ public class OutboxEventPublisher {
                     outboxEventService.markPublished(event.getId());
                 } else {
                     outboxEventService.markFailed(event.getId(), ex);
+                    log.error(
+                            "event=kafka_publish_failed component=kafka-producer " +
+                                    "eventId={} eventType={} aggregateId={} topic={}",
+                            event.getId(),
+                            event.getEventType(),
+                            event.getAggregateId(),
+                            TOPIC,
+                            ex
+                    );
                 }
             });
 
         } catch (JsonProcessingException e) {
             outboxEventService.markFailed(event.getId(), e);
+            log.error(
+                    "event=kafka_serialization_failed component=kafka-producer " +
+                            "eventId={} eventType={} aggregateId={}",
+                    event.getId(),
+                    event.getEventType(),
+                    event.getAggregateId(),
+                    e
+            );
         }
     }
 
