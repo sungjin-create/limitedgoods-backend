@@ -57,10 +57,20 @@ public class Order {
                 .build();
     }
 
-    public void markPaymentPending() {
-        if (this.status != OrderStatus.CREATED && this.status != OrderStatus.PAYMENT_FAILED) {
+    public void markPaymentPending(LocalDateTime now) {
+        if (this.status != OrderStatus.CREATED
+                && this.status != OrderStatus.PAYMENT_FAILED) {
             throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
         }
+
+        if (this.expiresAt == null || !this.expiresAt.isAfter(now)) {
+            throw new BusinessException(ErrorCode.RESERVATION_EXPIRED);
+        }
+
+        this.status = OrderStatus.PAYMENT_PENDING;
+        this.updatedAt = now;
+        this.failReason = null;
+        this.failedAt = null;
         this.status = OrderStatus.PAYMENT_PENDING;
         this.updatedAt = LocalDateTime.now();
 

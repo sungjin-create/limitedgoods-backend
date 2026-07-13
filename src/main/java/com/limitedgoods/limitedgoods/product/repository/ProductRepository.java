@@ -47,4 +47,20 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     """)
     Page<Product> searchByKeyword(Pageable pageable, @Param("keyword") String keyword);
 
+    @Query("""
+    select case when count(p) > 0 then true else false end
+    from Product p
+    where p.id = :productId
+      and p.stock <= 0
+    """)
+    boolean isSoldOut(@Param("productId") Long productId);
+
+    @Query("""
+    select p.stock
+    from Product p
+    where p.id = :productId
+    """)
+    Optional<Integer> findStockById(@Param("productId") Long productId
+    );
+
 }

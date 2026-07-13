@@ -67,6 +67,12 @@ public enum ErrorCode {
             "현재 결제 진행중인 주문이 있습니다."
     ),
 
+    TOO_MANY_ORDER_REQUESTS(
+            HttpStatus.TOO_MANY_REQUESTS,
+            "ORDER_006",
+            "주문 요청이 너무 많습니다. 잠시 후 다시 시도해주세요."
+    ),
+
     PAYMENT_FAILED(
             HttpStatus.BAD_REQUEST,
             "PAYMENT_001",

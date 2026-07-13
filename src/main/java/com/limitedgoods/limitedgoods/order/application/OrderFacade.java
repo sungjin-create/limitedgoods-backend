@@ -9,13 +9,12 @@ import com.limitedgoods.limitedgoods.order.dto.OrderPaymentInfo;
 import com.limitedgoods.limitedgoods.order.dto.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderResponseDto;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
-import com.limitedgoods.limitedgoods.order.reservation.RedisReservationService;
-import com.limitedgoods.limitedgoods.order.reservation.ReservationPayload;
+import com.limitedgoods.limitedgoods.order.service.OrderRateLimitService;
 import com.limitedgoods.limitedgoods.order.service.OrderService;
+import com.limitedgoods.limitedgoods.order.service.SoldOutCacheService;
 import com.limitedgoods.limitedgoods.payment.dto.PaymentRequestDto;
 import com.limitedgoods.limitedgoods.payment.service.PaymentFailedException;
 import com.limitedgoods.limitedgoods.payment.service.PaymentService;
-import com.limitedgoods.limitedgoods.stock.service.RedisStockService;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,21 +23,18 @@ import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderFacade {
 
     private final OrderService orderService;
-    private final RedisStockService redisStockService;
     private final PaymentService paymentService;
-    private final RedisReservationService redisReservationService;
     private final PaymentIdempotencyService paymentIdempotencyService;
     private final CartService cartService;
     private final MeterRegistry  meterRegistry;
+    private final SoldOutCacheService soldOutCacheService;
+    private final OrderRateLimitService orderRateLimitService;
 
     private final long EXPIRED_SECONDS = 300;
 
@@ -59,50 +55,51 @@ public class OrderFacade {
 
     public OrderResponseDto createOrder(Long userId, OrderRequestDto request) {
 
-        String checkoutToken = request.getCheckoutToken();
-        if(checkoutToken == null) {
-            throw new BusinessException(ErrorCode.HAS_NO_CHECKOUT_TOKEN);
-        }
+        //유효한 요청인지 검사
+        validateOrderRequest(request);
 
-        //토큰이 같은경우 CREATED, PAYMENT_PENDING, PAYMENT_APPROVED, PAYMENT_FAILED -> 기존 주문 반환
+        String checkoutToken = request.getCheckoutToken();
+
+        /*
+            토큰이 같은 경우의 상태별 반환
+            상태 : CREATED, PAYMENT_PENDING, PAYMENT_APPROVED, PAYMENT_FAILED -> 기존 주문 반환
+            나머지 : 주문 진행
+         */
         OrderResponseDto existing = orderService.findActiveOrderByCheckoutToken(userId, checkoutToken);
         if (existing != null) {
             return existing;
         }
 
         /*
-        토큰이 다른경우 기존에 진행중인 주문이 있는지 검사 (1인 1주문 원칙)
-        - CREATED, PAYMENT_FAILED-> 재고 복구 및 기존주문 EXPIRED
-        - PAYMENT_PENDING, PAYMENT_APPROVED -> 주문 생성 X, 이미 처리중인 주문이 있음
-        - 나머지 STATUS -> 새 주문 생성
+         * 사용자별·상품별 요청 제한.
+         *
+         * Redis 장애 시 OrderRateLimitService는 true를 반환하여
+         * DB가 최종 판단하도록 구현한다.
+         */
+        validateRateLimit(userId, request);
+
+        /*
+         * 최근 DB에서 품절이 확인된 상품을 빠르게 거절한다.
+         *
+         * Redis 장애 또는 캐시 미스 시 false를 반환하고
+         * DB 조건부 업데이트에서 최종 판단한다.
+         */
+        validateSoldOutCache(request);
+
+        /*
+         * 1인 1주문 원칙
+         * 사용자의 기존 CREATED/PAYMENT_FAILED 주문을 만료하고
+         * 해당 주문이 확보했던 DB 재고를 복구한다.
+         *
+         * PAYMENT_PENDING/PAYMENT_APPROVED 주문이 있다면 예외를 발생시킨다.
          */
         orderService.cancelActivePendingOrder(userId);
 
-        List<OrderItemsListDto> items = request.getItems();
-        List<OrderItemsListDto> decreasedItems = new ArrayList<>();
-
         try {
-            for (OrderItemsListDto item : items) {
-                redisStockService.decreaseStock(item.getProductId(), item.getQuantity());
-                decreasedItems.add(item);
-            }
-        } catch (BusinessException e) {
-            for (OrderItemsListDto compensate : decreasedItems) {
-                redisStockService.increaseStock(compensate.getProductId(), compensate.getQuantity());
-            }
-            meterRegistry.counter("order.created", "result", "fail").increment();
-            throw e;
-        }
-
-        try {
-            OrderResponseDto order = orderService.createOrder(userId, items, EXPIRED_SECONDS, checkoutToken);
-            redisReservationService.createReservation(order.getId(), items, EXPIRED_SECONDS);
+            OrderResponseDto order = orderService.createOrder(userId, request.getItems(), EXPIRED_SECONDS, checkoutToken);
             meterRegistry.counter("order.created", "result", "success").increment();
             return order;
         } catch (RuntimeException e) {
-            for (OrderItemsListDto compensate : decreasedItems) {
-                redisStockService.increaseStock(compensate.getProductId(), compensate.getQuantity());
-            }
             meterRegistry.counter("order.created", "result", "fail").increment();
             throw e;
         }
@@ -135,15 +132,6 @@ public class OrderFacade {
                 return response;
             }
 
-            // 4. Redis 예약키 존재 여부 확인 → 없으면 결제 유효시간 만료
-            ReservationPayload reservation = redisReservationService.getReservation(orderId);
-            if (reservation == null) {
-                throw new BusinessException(ErrorCode.RESERVATION_EXPIRED);
-            }
-
-            // 5. 결제 처리 중 예약 TTL이 만료되지 않도록 유효시간 연장
-            redisReservationService.extendReservation(orderId, EXPIRED_SECONDS);
-
             // 6. 주문 상태를 PAYMENT_PENDING으로 전이 (비관적 락으로 동시 결제 시도 차단)
             paymentInfo = orderService.startPayment(userId, orderId);
 
@@ -158,7 +146,6 @@ public class OrderFacade {
             OrderResponseDto response = retryFinalizeApprovedPayment(userId, orderId);
 
             // 10. Redis 예약키 삭제 및 멱등성 응답 저장
-            redisReservationService.deleteReservation(orderId);
             paymentIdempotencyService.saveResponse(userId, orderId, idempotencyKey, response);
 
             // 11. 장바구니 비우기 (실패해도 결제 결과에 영향 없음)
@@ -187,9 +174,7 @@ public class OrderFacade {
 
         try {
             paymentService.cancel(orderId, cancelInfo.totalPrice());
-
             return orderService.completeRefund(userId, orderId);
-
         } catch (PaymentFailedException e) {
             orderService.failRefund(userId, orderId, e.getMessage());
             throw new BusinessException(ErrorCode.PAYMENT_CANCEL_FAILED);
@@ -216,4 +201,50 @@ public class OrderFacade {
         }
     }
 
+    /**
+     * 기본 주문 요청 검증
+     */
+    private void validateOrderRequest(OrderRequestDto request) {
+        if (request == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+
+        if (request.getCheckoutToken() == null || request.getCheckoutToken().isBlank()) {
+            throw new BusinessException(ErrorCode.HAS_NO_CHECKOUT_TOKEN);
+        }
+
+        if (request.getItems() == null || request.getItems().isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+    }
+
+    /**
+     * 사용자별·상품별 주문 요청 제한
+     */
+    private void validateRateLimit(Long userId, OrderRequestDto request) {
+        for (OrderItemsListDto item : request.getItems()) {
+            boolean allowed = orderRateLimitService.allow(userId, item.getProductId());
+
+            if (!allowed) {
+                meterRegistry.counter("order.rejected", "reason", "rate_limit").increment();
+                throw new BusinessException(ErrorCode.TOO_MANY_ORDER_REQUESTS);
+            }
+        }
+    }
+
+    /**
+     * Redis 품절 캐시를 이용한 빠른 거절
+     */
+    private void validateSoldOutCache(OrderRequestDto request) {
+        for (OrderItemsListDto item : request.getItems()) {
+            boolean soldOut = soldOutCacheService.isSoldOut(item.getProductId());
+
+            if (soldOut) {
+                meterRegistry.counter("order.rejected", "reason", "sold_out_cache").increment();
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
+            }
+        }
+    }
 }
+
+

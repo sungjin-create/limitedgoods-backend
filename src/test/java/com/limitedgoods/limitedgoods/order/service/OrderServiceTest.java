@@ -8,7 +8,6 @@ import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import com.limitedgoods.limitedgoods.order.repository.OrderItemRepository;
 import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
-import com.limitedgoods.limitedgoods.stock.service.RedisStockService;
 import com.limitedgoods.limitedgoods.support.OrderTestFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,8 +31,6 @@ class OrderServiceTest {
     @Mock
     ProductRepository productRepository;
     @Mock
-    RedisStockService redisStockService;
-    @Mock
     OutboxEventService outboxEventService;
 
     @InjectMocks
@@ -47,16 +44,8 @@ class OrderServiceTest {
         Long orderId = 1L;
 
         Order order = OrderTestFactory.paymentApprovedOrder(orderId, userId);
-        OrderItem orderItem = OrderTestFactory.orderItem(order, 1L, 1);
-
         when(orderRepository.findByIdForUpdate(orderId, userId))
                 .thenReturn(Optional.of(order));
-
-        when(orderItemRepository.findByOrderId(orderId))
-                .thenReturn(Optional.of(orderItem));
-
-        when(productRepository.decreaseStock(1L, 1))
-                .thenReturn(1);
 
         // when
         OrderResponseDto response =
@@ -64,7 +53,7 @@ class OrderServiceTest {
 
         // then
         assertThat(response.getStatus()).isEqualTo(OrderStatus.PAID.name());
-        verify(productRepository).decreaseStock(1L, 1);
+        verify(productRepository, never()).decreaseStock(anyLong(), anyInt());
     }
 
     @Test

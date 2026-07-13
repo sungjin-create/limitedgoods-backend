@@ -16,10 +16,8 @@ import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import com.limitedgoods.limitedgoods.order.repository.OrderItemRepository;
 import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
-import com.limitedgoods.limitedgoods.order.reservation.RedisReservationService;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
-import com.limitedgoods.limitedgoods.stock.service.RedisStockService;
 import com.limitedgoods.limitedgoods.user.entity.User;
 import com.limitedgoods.limitedgoods.user.repository.UserRepository;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -29,9 +27,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 
@@ -44,10 +45,9 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final OrderItemRepository orderItemRepository;
-    private final RedisStockService redisStockService;
-    private final RedisReservationService redisReservationService;
     private final MeterRegistry meterRegistry;
     private final OutboxEventService outboxEventService;
+    private final SoldOutCacheService soldOutCacheService;
 
     @PersistenceContext
     EntityManager em;
@@ -73,11 +73,40 @@ public class OrderService {
         int totalPrice = 0;
         List<OrderItem> orderItems = new ArrayList<>();
 
-        for (OrderItemsListDto item : items) {
+        List<OrderItemsListDto> sortedItems = items.stream()
+                .sorted(Comparator.comparing(OrderItemsListDto::getProductId))
+                .toList();
+
+        for (OrderItemsListDto item : sortedItems) {
             Product product = productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
 
+            int updated = productRepository.decreaseStock(
+                    product.getId(),
+                    item.getQuantity()
+            );
+
+            if(updated == 0) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
+            }
+            int remainingStock = productRepository.findStockById(
+                    product.getId()
+            ).orElseThrow(() ->
+                    new BusinessException(
+                            ErrorCode.INVALID_PRODUCT_ID
+                    )
+            );
+
+            /*
+             * 마지막 수량을 주문했다면 DB 커밋 후
+             * Redis 품절 캐시를 등록한다.
+             */
+            if (remainingStock == 0) {
+                soldOutCacheService.markSoldOutAfterCommit(product.getId());
+            }
+
             totalPrice += product.getPrice() * item.getQuantity();
+
             orderItems.add(OrderItem.builder()
                     .product(product)
                     .quantity(item.getQuantity())
@@ -107,7 +136,7 @@ public class OrderService {
     @Transactional
     public OrderPaymentInfo startPayment(Long userId, Long orderId) {
         Order order = getOrderForUpdate(orderId, userId);
-        order.markPaymentPending();
+        order.markPaymentPending(LocalDateTime.now());
         return new OrderPaymentInfo(order.getId(), order.getTotalPrice(), order.getStatus());
     }
 
@@ -134,19 +163,6 @@ public class OrderService {
 
         if (order.getStatus() != OrderStatus.PAYMENT_APPROVED) {
             throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
-        }
-
-        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
-        if (orderItems.isEmpty()) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
-
-        for (OrderItem orderItem : orderItems) {
-            int updated = productRepository.decreaseStock(
-                    orderItem.getProduct().getId(),
-                    orderItem.getQuantity()
-            );
-            if (updated == 0) {
-                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
-            }
         }
 
         order.markPaid();
@@ -183,9 +199,15 @@ public class OrderService {
         if (orderItems.isEmpty()) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
 
         for (OrderItem orderItem : orderItems) {
-            redisStockService.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
+            Long productId = orderItem.getProduct().getId();
+
+            productRepository.increaseStock(
+                    productId,
+                    orderItem.getQuantity()
+            );
+            soldOutCacheService.clearSoldOutAfterCommit(productId);
         }
-        redisReservationService.deleteReservation(orderId);
+
         outboxEventService.save(
                 OutboxEventType.ORDER_EXPIRED,
                 "ORDER",
@@ -276,14 +298,6 @@ public class OrderService {
             throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
         }
 
-        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
-        if (orderItems.isEmpty()) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
-
-        for (OrderItem orderItem : orderItems) {
-            productRepository.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
-            redisStockService.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
-        }
-
         order.cancelPaidOrder();
 
         return toResponse(order);
@@ -332,11 +346,15 @@ public class OrderService {
         }
 
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
-        if (orderItems.isEmpty()) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
 
         for (OrderItem orderItem : orderItems) {
-            productRepository.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
-            redisStockService.increaseStock(orderItem.getProduct().getId(), orderItem.getQuantity());
+            Long productId = orderItem.getProduct().getId();
+
+            productRepository.increaseStock(
+                    productId,
+                    orderItem.getQuantity()
+            );
+            soldOutCacheService.clearSoldOutAfterCommit(productId);
         }
 
         order.markRefunded();
@@ -382,24 +400,30 @@ public class OrderService {
     @Transactional
     public void cancelActivePendingOrder(Long userId) {
         List<Order> orderList = orderRepository.findOrderByUserIdAndStatusIn(userId,
-                List.of(OrderStatus.CREATED,
-                        OrderStatus.PAYMENT_FAILED,
-                        OrderStatus.PAYMENT_PENDING,
-                        OrderStatus.PAYMENT_APPROVED));
+                                List.of(OrderStatus.CREATED,
+                                        OrderStatus.PAYMENT_FAILED,
+                                        OrderStatus.PAYMENT_PENDING,
+                                        OrderStatus.PAYMENT_APPROVED));
 
-        for (Order order : orderList) {
-            if (order.getStatus() == OrderStatus.PAYMENT_PENDING
-                    || order.getStatus() == OrderStatus.PAYMENT_APPROVED) {
-                throw new BusinessException(ErrorCode.ORDER_STARTING_PAYMENT);
+                for (Order order : orderList) {
+                    if (order.getStatus() == OrderStatus.PAYMENT_PENDING
+                            || order.getStatus() == OrderStatus.PAYMENT_APPROVED) {
+                        throw new BusinessException(ErrorCode.ORDER_STARTING_PAYMENT);
+                    }
+
+                    // CREATED, PAYMENT_FAILED → 직접 처리 (expireOrder 호출 대신)
+                    List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+
+                    for (OrderItem item : items) {
+                        productRepository.increaseStock(
+                                item.getProduct().getId(),
+                                item.getQuantity()
+                        );
+                        soldOutCacheService.clearSoldOutAfterCommit(item.getProduct().getId());
             }
 
-            // CREATED, PAYMENT_FAILED → 직접 처리 (expireOrder 호출 대신)
-            List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
-            for (OrderItem item : items) {
-                redisStockService.increaseStock(item.getProduct().getId(), item.getQuantity());
-            }
-            redisReservationService.deleteReservation(order.getId());
             order.markExpired();
         }
     }
+
 }

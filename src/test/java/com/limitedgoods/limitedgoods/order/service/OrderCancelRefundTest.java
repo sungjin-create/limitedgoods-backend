@@ -8,7 +8,6 @@ import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import com.limitedgoods.limitedgoods.order.repository.OrderItemRepository;
 import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
-import com.limitedgoods.limitedgoods.stock.service.RedisStockService;
 import com.limitedgoods.limitedgoods.support.OrderTestFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,8 +29,8 @@ class OrderCancelRefundTest {
     @Mock OrderRepository orderRepository;
     @Mock OrderItemRepository orderItemRepository;
     @Mock ProductRepository productRepository;
-    @Mock RedisStockService redisStockService;
     @Mock OutboxEventService outboxEventService;
+    @Mock SoldOutCacheService soldOutCacheService;
 
     @InjectMocks OrderService orderService;
 
@@ -47,7 +47,7 @@ class OrderCancelRefundTest {
         when(orderRepository.findByIdForUpdate(orderId, userId))
                 .thenReturn(Optional.of(order));
         when(orderItemRepository.findByOrderId(orderId))
-                .thenReturn(Optional.of(orderItem));
+                .thenReturn(List.of(orderItem));
 
         // when
         OrderPaymentInfo result =
@@ -71,7 +71,7 @@ class OrderCancelRefundTest {
         when(orderRepository.findByIdForUpdate(orderId, userId))
                 .thenReturn(Optional.of(order));
         when(orderItemRepository.findByOrderId(orderId))
-                .thenReturn(Optional.of(orderItem));
+                .thenReturn(List.of(orderItem));
 
         // when
         OrderResponseDto response =
@@ -80,7 +80,7 @@ class OrderCancelRefundTest {
         // then
         assertThat(response.getStatus()).isEqualTo(OrderStatus.REFUNDED.name());
         verify(productRepository).increaseStock(1L, 2);
-        verify(redisStockService).increaseStock(1L, 2);
+        verify(soldOutCacheService).clearSoldOutAfterCommit(1L);
     }
 
     @Test

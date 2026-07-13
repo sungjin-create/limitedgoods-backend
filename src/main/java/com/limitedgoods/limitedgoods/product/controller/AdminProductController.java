@@ -4,16 +4,12 @@ import com.limitedgoods.limitedgoods.common.response.ApiResponse;
 import com.limitedgoods.limitedgoods.product.dto.ProductRegisterRequest;
 import com.limitedgoods.limitedgoods.product.dto.ProductResponseDTO;
 import com.limitedgoods.limitedgoods.product.dto.ProductUpdateRequest;
-import com.limitedgoods.limitedgoods.product.entity.Product;
-import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import com.limitedgoods.limitedgoods.product.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/product")
@@ -43,12 +39,6 @@ public class AdminProductController {
         productService.deleteProduct(id);
 
         return ResponseEntity.ok(ApiResponse.success(id));
-    }
-
-    @PostMapping("/stock/init")
-    public ResponseEntity<ApiResponse<String>> initRedisStock() {
-        productService.initRedisStock();
-        return ResponseEntity.ok(ApiResponse.success("Redis 재고 초기화 완료"));
     }
 
 }
