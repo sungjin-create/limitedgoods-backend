@@ -1,5 +1,8 @@
 package com.limitedgoods.limitedgoods.order.repository;
 
+import com.limitedgoods.limitedgoods.backoffice.dashboard.dto.BackofficeRecentOrderResponse;
+import com.limitedgoods.limitedgoods.backoffice.order.dto.BackofficeMonitoringOrderFlatResponse;
+import com.limitedgoods.limitedgoods.backoffice.order.dto.BackofficeMonitoringSummaryResponse;
 import com.limitedgoods.limitedgoods.order.dto.AdminOrderResponseDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderDetailResponseDto;
 import com.limitedgoods.limitedgoods.order.entity.Order;
@@ -135,4 +138,171 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findOrderByUserIdAndCheckoutTokenAndStatusIn(Long userId, String checkoutToken, List<OrderStatus> statusList);
 
     List<Order> findOrderByUserIdAndStatusIn(Long userId, List<OrderStatus> orderStatusList);
+
+    @Query("""
+    select count(o)
+    from Order o
+    where o.createdAt >= :start
+      and o.createdAt < :end
+    """)
+    long countOrdersCreatedBetween(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    @Query("""
+    select count(o)
+    from Order o
+    where o.paidAt >= :start
+      and o.paidAt < :end
+      and o.status in :statuses
+    """)
+    long countPaidOrdersBetween(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("statuses") List<OrderStatus> statuses
+    );
+
+    @Query("""
+    select coalesce(sum(o.totalPrice), 0)
+    from Order o
+    where o.paidAt >= :start
+      and o.paidAt < :end
+      and o.status in :statuses
+    """)
+    long sumRevenueBetween(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("statuses") List<OrderStatus> statuses
+    );
+
+
+    @Query("""
+    select count(o)
+    from Order o
+    where o.createdAt >= :start
+      and o.createdAt < :end
+    """)
+    long countCreatedBetween(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    @Query("""
+    select count(o)
+    from Order o
+    where o.paidAt >= :start
+      and o.paidAt < :end
+      and o.status in :statuses
+    """)
+    long countPaidBetween(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("statuses") List<OrderStatus> statuses
+    );
+
+    @Query("""
+    select count(o)
+    from Order o
+    where o.createdAt >= :start
+      and o.createdAt < :end
+      and o.status in :statuses
+    """)
+    long countCreatedBetweenAndStatusIn(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("statuses") List<OrderStatus> statuses
+    );
+
+    @Query("""
+    select new com.limitedgoods.limitedgoods.backoffice.dashboard.dto.BackofficeRecentOrderResponse(
+        o.id,
+        u.email,
+        p.name,
+        o.totalPrice,
+        o.status,
+        o.createdAt
+    )
+    from OrderItem oi
+    join oi.order o
+    join o.user u
+    join oi.product p
+    order by o.createdAt desc
+    """)
+    List<BackofficeRecentOrderResponse> findRecentOrders(Pageable pageable);
+
+    @Query("""
+    select new com.limitedgoods.limitedgoods.backoffice.order.dto.BackofficeMonitoringOrderFlatResponse(
+        o.id,
+        u.email,
+        o.totalPrice,
+        o.status,
+        o.createdAt,
+        p.id,
+        p.name,
+        oi.quantity,
+        oi.price
+    )
+    from OrderItem oi
+    join oi.order o
+    join o.user u
+    join oi.product p
+    order by o.createdAt desc
+    """)
+    List<BackofficeMonitoringOrderFlatResponse> findBackofficeMonitoringOrderFlat();
+
+    @Query("""
+    select new com.limitedgoods.limitedgoods.backoffice.order.dto.BackofficeMonitoringOrderFlatResponse(
+        o.id,
+        u.email,
+        o.totalPrice,
+        o.status,
+        o.createdAt,
+        p.id,
+        p.name,
+        oi.quantity,
+        oi.price
+    )
+    from OrderItem oi
+    join oi.order o
+    join o.user u
+    join oi.product p
+    where (o.createdAt >= :startAt)
+      and (o.expiresAt <= :endAt)
+    order by o.createdAt desc
+    """)
+    List<BackofficeMonitoringOrderFlatResponse> findBackofficeMonitoringOrderFlat(
+            @Param("startAt") LocalDateTime startAt,
+            @Param("endAt") LocalDateTime endAt
+    );
+
+    @Query("""
+    select new com.limitedgoods.limitedgoods.backoffice.order.dto.BackofficeMonitoringSummaryResponse(
+        coalesce(sum(case when o.status = 'PAYMENT_PENDING' then 1 else 0 end), 0),
+        coalesce(sum(case when o.status = 'PAID' then 1 else 0 end), 0),
+        coalesce(sum(case when o.status = 'CANCELED' then 1 else 0 end), 0),
+        coalesce(sum(case when o.status = 'PAYMENT_FAILED' then 1 else 0 end), 0)
+    )
+    from Order o
+    where (o.createdAt >= :startAt)
+      and (o.createdAt <= :endAt)
+    """)
+    BackofficeMonitoringSummaryResponse getBackofficeMonitoringSummary(
+            @Param("startAt") LocalDateTime startAt,
+            @Param("endAt") LocalDateTime endAt
+    );
+
+    @Query("""
+    select new com.limitedgoods.limitedgoods.backoffice.order.dto.BackofficeMonitoringSummaryResponse(
+        coalesce(sum(case when o.status = 'PAYMENT_PENDING' then 1 else 0 end), 0),
+        coalesce(sum(case when o.status = 'PAID' then 1 else 0 end), 0),
+        coalesce(sum(case when o.status = 'CANCELED' then 1 else 0 end), 0),
+        coalesce(sum(case when o.status = 'PAYMENT_FAILED' then 1 else 0 end), 0)
+    )
+    from Order o
+    where (o.createdAt >= :startAt)
+      and (o.createdAt <= :endAt)
+    """)
+    BackofficeMonitoringSummaryResponse getBackofficeMonitoringSummary();
+
 }

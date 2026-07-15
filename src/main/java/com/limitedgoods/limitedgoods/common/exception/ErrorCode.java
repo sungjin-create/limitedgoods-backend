@@ -13,7 +13,6 @@ public enum ErrorCode {
             "USER_001",
             "사용자를 찾을 수 없습니다."
     ),
-
     DUPLICATE_EMAIL(
             HttpStatus.CONFLICT,
             "USER_002",
@@ -42,31 +41,26 @@ public enum ErrorCode {
             "ORDER_001",
             "주문을 찾을 수 없습니다."
     ),
-
     INVALID_ORDER_STATUS(
             HttpStatus.BAD_REQUEST,
             "ORDER_002",
             "현재 주문 상태에서는 요청을 처리할 수 없습니다."
     ),
-
     ORDER_ALREADY_CANCELED(
             HttpStatus.CONFLICT,
             "ORDER_003",
             "이미 취소된 주문입니다."
     ),
-
     ORDER_CANCEL_NOT_ALLOWED(
             HttpStatus.BAD_REQUEST,
             "ORDER_004",
             "현재 주문 상태에서는 취소할 수 없습니다."
     ),
-
     ORDER_STARTING_PAYMENT(
             HttpStatus.BAD_REQUEST,
             "ORDER_005",
             "현재 결제 진행중인 주문이 있습니다."
     ),
-
     TOO_MANY_ORDER_REQUESTS(
             HttpStatus.TOO_MANY_REQUESTS,
             "ORDER_006",
@@ -88,7 +82,6 @@ public enum ErrorCode {
             "PAYMENT_003",
             "이미 처리 중이거나 처리된 결제 요청입니다."
     ),
-
     PAYMENT_CANCEL_FAILED(
             HttpStatus.BAD_REQUEST,
             "PAYMENT_004",
@@ -100,7 +93,6 @@ public enum ErrorCode {
             "CART_001",
             "CART를 찾을 수 없습니다."
     ),
-
     CART_ITEM_NOT_FOUND(
             HttpStatus.BAD_REQUEST,
             "CART_ITEM_001",
@@ -111,10 +103,27 @@ public enum ErrorCode {
             "CART_ITEM_002",
             "ITEM이 이미 장바구니에 담겨있습니다."
     ),
+
     HAS_NO_CHECKOUT_TOKEN(
             HttpStatus.BAD_REQUEST,
             "CHECKOUT_TOKEN_001",
             "CHECKOUT_TOKEN이 없습니다."
+    ),
+
+    QUEUE_SOLD_OUT(
+            HttpStatus.BAD_REQUEST,
+            "QUEUE_001",
+            "품절된 상품은 대기열에 진입할 수 없습니다."
+    ),
+    ADMISSION_TOKEN_REQUIRED(
+            HttpStatus.FORBIDDEN,
+            "QUEUE_002",
+            "입장 토큰이 필요합니다."
+    ),
+    ADMISSION_TOKEN_INVALID(
+            HttpStatus.FORBIDDEN,
+            "QUEUE_003",
+            "유효하지 않거나 만료된 입장 토큰입니다."
     )
     ;
 
