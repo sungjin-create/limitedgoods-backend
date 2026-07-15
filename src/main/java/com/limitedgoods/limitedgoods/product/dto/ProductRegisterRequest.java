@@ -1,10 +1,13 @@
 package com.limitedgoods.limitedgoods.product.dto;
 
+import com.limitedgoods.limitedgoods.product.entity.ProductType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
+
+import java.time.LocalDateTime;
 
 @Data
 public class ProductRegisterRequest {
@@ -21,5 +24,14 @@ public class ProductRegisterRequest {
     @NotNull(message = "수량은 필수입니다.")
     @Positive(message = "하나이상의 숫자만 가능합니다.")
     private int stock;
+
+    @NotNull(message = "type은 필수입니다.")
+    private ProductType type;
+
+    @NotNull(message = "상품의 보여짐 여부는 필수입니다.")
+    private boolean visible;
+
+    private LocalDateTime saleStartAt;
+    private LocalDateTime saleEndAt;
 
 }

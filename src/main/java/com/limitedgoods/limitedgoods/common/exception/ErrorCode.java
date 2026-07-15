@@ -35,6 +35,11 @@ public enum ErrorCode {
             "PRODUCT_002",
             "상품의 재고보다 요청한 수량이 더 많습니다."
     ),
+    INVALID_PRODUCT_TIME(
+            HttpStatus.BAD_REQUEST,
+            "PRODUCT_003",
+            "유효하지 않은 상품 등록기간입니다."
+    ),
 
     ORDER_NOT_FOUND(
             HttpStatus.NOT_FOUND,

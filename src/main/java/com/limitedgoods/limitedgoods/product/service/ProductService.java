@@ -6,6 +6,7 @@ import com.limitedgoods.limitedgoods.product.dto.ProductRegisterRequest;
 import com.limitedgoods.limitedgoods.product.dto.ProductResponseDTO;
 import com.limitedgoods.limitedgoods.product.dto.ProductUpdateRequest;
 import com.limitedgoods.limitedgoods.product.entity.Product;
+import com.limitedgoods.limitedgoods.product.entity.ProductType;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -27,12 +29,25 @@ public class ProductService {
         String description = productRegisterRequest.getDescription();
         int price = productRegisterRequest.getPrice();
         int stock = productRegisterRequest.getStock();
+        ProductType type = productRegisterRequest.getType();
+        boolean visible = productRegisterRequest.isVisible();
+        LocalDateTime saleStartAt = productRegisterRequest.getSaleStartAt();
+        LocalDateTime saleEndAt = productRegisterRequest.getSaleEndAt();
+
+        if(saleStartAt == null || saleEndAt == null
+                || saleStartAt.isAfter(saleEndAt)) {
+            throw new BusinessException(ErrorCode.INVALID_PRODUCT_TIME);
+        }
 
         Product product = new Product();
         product.setName(name);
         product.setDescription(description);
         product.setPrice(price);
         product.setStock(stock);
+        product.setType(type);
+        product.setVisible(visible);
+        product.setSaleStartAt(saleStartAt);
+        product.setSaleEndAt(saleEndAt);
 
         Product saveProduct = productRepository.save(product);
 
@@ -87,6 +102,10 @@ public class ProductService {
                 .description(product.getDescription())
                 .price(product.getPrice())
                 .stock(product.getStock())
+                .type(product.getType())
+                .visible(product.isVisible())
+                .saleStartAt(product.getSaleStartAt())
+                .saleEndAt(product.getSaleEndAt())
                 .build();
     }
 }
