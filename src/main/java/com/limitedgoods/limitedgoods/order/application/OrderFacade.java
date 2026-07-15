@@ -64,15 +64,12 @@ public class OrderFacade {
         //유효한 요청인지 검사
         validateOrderRequest(request);
 
-        validateAdmissionToken(request, userId);
-
-        String checkoutToken = request.getCheckoutToken();
-
         /*
             토큰이 같은 경우의 상태별 반환
             상태 : CREATED, PAYMENT_PENDING, PAYMENT_APPROVED, PAYMENT_FAILED -> 기존 주문 반환
             나머지 : 주문 진행
          */
+        String checkoutToken = request.getCheckoutToken();
         OrderResponseDto existing = orderService.findActiveOrderByCheckoutToken(userId, checkoutToken);
         if (existing != null) {
             return existing;
@@ -93,6 +90,13 @@ public class OrderFacade {
          * DB 조건부 업데이트에서 최종 판단한다.
          */
         validateSoldOutCache(request);
+
+
+        /*
+         * AdmissionToken 유효성 검사
+         * 정상적으로 Queue대기열 토큰을 발급받은 사용자인지 검사
+         */
+        validateAdmissionToken(request, userId);
 
         /*
          * 1인 1주문 원칙
