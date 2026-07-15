@@ -25,22 +25,22 @@ public class QueueService {
      * 대기열 진입
      * 이미 등록된 경우 기존 순번 유지
      */
-    public QueueStatusResponse enter(Long userId, Long productId) {
-        //SoldOut인 경우 큐 진입 x
+    public QueueStatusResponse enterQueue(Long userId, Long productId) {
+        //SoldOut인 경우 큐 진입 차단
         if (soldOutCacheService.isSoldOut(productId)) {
             throw new BusinessException(ErrorCode.QUEUE_SOLD_OUT);
         }
 
-        String queueKey = QUEUE_PREFIX + productId;
+        String queueProductKey = QUEUE_PREFIX + productId;
 
         // NX 옵션: 이미 있으면 기존 score(순번) 유지
         redisTemplate.opsForZSet().addIfAbsent(
-                queueKey,
+                queueProductKey,
                 userId.toString(),
                 System.currentTimeMillis()
         );
 
-        return checkAndIssue(userId, productId, queueKey);
+        return checkRankAndIssueToken(userId, productId, queueProductKey);
     }
 
     /**
@@ -52,10 +52,10 @@ public class QueueService {
 
         if (rank == null) {
             // 대기열에 없으면 재진입 처리
-            return enter(userId, productId);
+            return enterQueue(userId, productId);
         }
 
-        return checkAndIssue(userId, productId, queueKey);
+        return checkRankAndIssueToken(userId, productId, queueKey);
     }
 
     /**
@@ -67,8 +67,8 @@ public class QueueService {
         log.info("대기열 제거 userId={}, productId={}", userId, productId);
     }
 
-    private QueueStatusResponse checkAndIssue(Long userId, Long productId, String queueKey) {
-        Long rank = redisTemplate.opsForZSet().rank(queueKey, userId.toString());
+    private QueueStatusResponse checkRankAndIssueToken(Long userId, Long productId, String queueProductKey) {
+        Long rank = redisTemplate.opsForZSet().rank(queueProductKey, userId.toString());
 
         if (rank == null) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);

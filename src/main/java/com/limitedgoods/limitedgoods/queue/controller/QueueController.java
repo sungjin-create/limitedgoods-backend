@@ -28,7 +28,7 @@ public class QueueController {
             @Valid @RequestBody QueueEnterRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        QueueStatusResponse response = queueService.enter(
+        QueueStatusResponse response = queueService.enterQueue(
                 userDetails.getUserId(),
                 request.getProductId()
         );
