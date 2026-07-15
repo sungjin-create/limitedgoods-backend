@@ -9,12 +9,15 @@ import com.limitedgoods.limitedgoods.order.dto.OrderPaymentInfo;
 import com.limitedgoods.limitedgoods.order.dto.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderResponseDto;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
+import com.limitedgoods.limitedgoods.order.metrics.OrderMetrics;
 import com.limitedgoods.limitedgoods.order.service.OrderRateLimitService;
 import com.limitedgoods.limitedgoods.order.service.OrderService;
 import com.limitedgoods.limitedgoods.order.service.SoldOutCacheService;
 import com.limitedgoods.limitedgoods.payment.dto.PaymentRequestDto;
 import com.limitedgoods.limitedgoods.payment.service.PaymentFailedException;
 import com.limitedgoods.limitedgoods.payment.service.PaymentService;
+import com.limitedgoods.limitedgoods.queue.service.AdmissionTokenService;
+import com.limitedgoods.limitedgoods.queue.service.QueueService;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +38,9 @@ public class OrderFacade {
     private final MeterRegistry  meterRegistry;
     private final SoldOutCacheService soldOutCacheService;
     private final OrderRateLimitService orderRateLimitService;
+    private final OrderMetrics orderMetrics;
+    private final AdmissionTokenService admissionTokenService;
+    private final QueueService queueService;
 
     private final long EXPIRED_SECONDS = 300;
 
@@ -57,6 +63,8 @@ public class OrderFacade {
 
         //유효한 요청인지 검사
         validateOrderRequest(request);
+
+        validateAdmissionToken(request, userId);
 
         String checkoutToken = request.getCheckoutToken();
 
@@ -97,6 +105,7 @@ public class OrderFacade {
 
         try {
             OrderResponseDto order = orderService.createOrder(userId, request.getItems(), EXPIRED_SECONDS, checkoutToken);
+            orderMetrics.increaseOrderCreated();
             meterRegistry.counter("order.created", "result", "success").increment();
             return order;
         } catch (RuntimeException e) {
@@ -199,6 +208,20 @@ public class OrderFacade {
             orderService.failRefund(userId, orderId, e.getMessage());
             throw new BusinessException(ErrorCode.PAYMENT_CANCEL_FAILED);
         }
+    }
+
+    private void validateAdmissionToken(OrderRequestDto request, Long userId) {
+        String token = request.getAdmissionToken();
+        if (token == null || token.isBlank()) {
+            throw new BusinessException(ErrorCode.ADMISSION_TOKEN_REQUIRED);
+        }
+        Long productId = request.getItems().get(0).getProductId();
+        boolean valid = admissionTokenService.validateAndConsume(token, userId, productId);
+        if (!valid) {
+            throw new BusinessException(ErrorCode.ADMISSION_TOKEN_INVALID);
+        }
+        // 토큰 소비 성공 → 큐 슬롯 반환 (다음 대기자가 입장 가능해짐)
+        queueService.removeFromQueue(userId, productId);
     }
 
     /**

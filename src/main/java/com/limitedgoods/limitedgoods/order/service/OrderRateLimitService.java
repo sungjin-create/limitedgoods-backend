@@ -36,10 +36,7 @@ public class OrderRateLimitService {
     private final RedisTemplate<String, String> redisTemplate;
 
     public boolean allow(Long userId, Long productId) {
-        String key = "rate-limit:order:"
-                + userId
-                + ":"
-                + productId;
+        String key = "rate-limit:order:" + userId + ":" + productId;
 
         try {
             Long result = redisTemplate.execute(
