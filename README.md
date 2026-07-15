@@ -1,26 +1,30 @@
 # Limited Goods
 
-한정 수량 상품의 주문, 재고 예약, 결제, 만료 처리를 안정적으로 처리하는 커머스 주문 시스템입니다.
+Limited Goods is a commerce backend project focused on limited-stock product sales.
+The project is designed around real production concerns such as overselling, duplicate
+payments, order expiration, inventory reservation, outbox event publishing, monitoring,
+and load testing.
 
-## 1. 프로젝트 소개
-- 한정 수량 상품의 주문 폭주 상황을 가정해, 재고 선점과 결제 흐름의 정합성을 안정적으로 처리하는 커머스 주문 시스템입니다.
-- 단순한 주문 CRUD가 아니라, 동시에 많은 사용자가 같은 상품을 주문할 때 발생할 수 있는 초과 판매, 중복 결제, 결제 실패 후 재시도, 주문 만료와 재고 복구 문제를 해결하는 데 초점을 맞췄습니다.
+This is not a simple product/order CRUD application. The main goal is to show how a
+backend service can be prepared for reliable operation.
 
+## Goals
 
-## 2. 핵심 기능
-- 회원가입 / 로그인
-- 상품 조회 및 등록
-- 주문 생성
-- Redis 기반 재고 예약
-- 결제 요청 및 중복 결제 방지
-- 주문 만료 처리
-- 주문 취소 / 환불
-- 관리자 주문 조회
-- Kafka Outbox 기반 이벤트 처리
-- Prometheus / Grafana 모니터링
+- Prevent overselling during high-concurrency limited-stock sales
+- Reserve inventory with Redis before final payment completion
+- Protect payment requests with idempotency keys
+- Separate payment approval from final order confirmation
+- Publish order events through a transactional outbox pattern
+- Prevent duplicate event consumption
+- Split Docker Compose files by runtime purpose
+- Observe the service with Prometheus and Grafana
+- Validate behavior with k6 load tests
+- Prepare the project for CI/CD and cloud deployment
 
-## 3. 기술 스택
+## Tech Stack
+
 ### Backend
+
 - Java 17
 - Spring Boot 3.5
 - Spring Security / JWT
@@ -32,129 +36,248 @@
 - JUnit
 
 ### Frontend
+
 - React 19
 - Vite
-- CSS Modules 또는 CSS 분리 구조
 - lucide-react
 
-## 4. 시스템 아키텍처
+### DevOps
 
-사용자 -> React Frontend -> Spring Boot API
--> PostgreSQL
--> Redis
--> Kafka
--> Prometheus/Grafana
+- Docker
+- Docker Compose
+- k6
+- GitHub Actions
+- Cloud deployment planned
 
-## 5. 핵심 설계 포인트
-### Redis 기반 재고 선점
+## Main Features
 
-한정 수량 상품은 짧은 시간에 주문 요청이 몰릴 수 있기 때문에,
-주문 생성 시 DB 재고를 바로 차감하지 않고 Redis에서 먼저 판매 가능 수량을 선점하도록 설계했습니다.
+- User signup and login
+- Product registration, update, and listing
+- Redis-based inventory reservation
+- Order creation
+- Order expiration and inventory recovery
+- Payment request and failure handling
+- Payment idempotency
+- Order cancellation and refund
+- Admin order search
+- Kafka outbox event publishing
+- Prometheus metrics
+- k6 load testing
 
-이를 통해 DB 트랜잭션 경합을 줄이고, 결제가 완료된 주문에 대해서만 최종적으로 DB 재고를 차감합니다.
+## System Overview
 
-### 결제 멱등성 처리
-
-동일한 결제 요청이 여러 번 전송되더라도 중복 결제가 발생하지 않도록
-`Idempotency-Key` 기반으로 처리 중 lock과 저장된 응답을 관리했습니다.
-
-이미 처리된 요청은 기존 결제 결과를 반환하고,
-처리 중인 요청은 중복 요청으로 차단합니다.
-
-### 주문 상태 분리
-
-외부 결제 승인 이후 DB 재고 차감이나 주문 확정 단계에서 실패할 수 있기 때문에,
-`PAYMENT_APPROVED` 상태를 별도로 두었습니다.
-
-이 상태를 통해 외부 결제를 다시 호출하지 않고 내부 주문 확정 단계만 재시도할 수 있습니다.
-
-
-## 6. 트러블슈팅 / 성능 검증
-## 성능 테스트
-
-k6를 사용해 한정 수량 상품에 대한 동시 주문 요청을 검증했습니다.
-
-### 검증 시나리오
-- 재고 10개 상품에 100명의 사용자가 동시에 주문 요청
-- 성공 주문 수가 재고 수량을 초과하지 않는지 확인
-- 실패 요청이 정상적으로 재고 부족 응답을 반환하는지 확인
-
-### 결과
-- 성공 주문 수: 10건
-- 실패 주문 수: 90건
-- DB 재고 및 Redis 예약 수량 정합성 유지
-
-## 7. 실행 방법
-
-### Backend
-
-```bash
-cd limitedgoods
-docker-compose up -d
-./gradlew bootRun
+```text
+React Frontend
+  -> Spring Boot API
+      -> PostgreSQL
+      -> Redis
+      -> Kafka
+      -> Prometheus / Grafana
 ```
 
-### 접속 주소
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8080
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000
+## Docker Compose Layout
 
+The Docker Compose setup is split by runtime purpose. This keeps the default local
+environment lightweight while still allowing a full demo stack when needed.
 
+| File | Purpose | Services |
+| --- | --- | --- |
+| `docker-compose.yml` | Lightweight local development | PostgreSQL, Redis |
+| `docker-compose.kafka.yml` | Event/outbox demo | Kafka |
+| `docker-compose.app.yml` | Backend container runtime | Spring Boot app |
+| `docker-compose.observability.yml` | Monitoring demo | Prometheus, Grafana |
 
-## 8. 테스트
+See [Docker Compose Guide](./docs/docker-compose-guide.md) for more details.
 
-### 주요 테스트 항목:
-- 주문 생성 시 Redis 재고 선점
-- 재고 부족 시 주문 실패
-- 결제 성공 후 주문 상태 변경
-- 중복 결제 요청 방지
-- 주문 만료 시 재고 복구
-- Outbox 이벤트 중복 처리 방지
+### 1. Local Development Infrastructure
 
+Use this when running Spring Boot from the IDE or Gradle on the host machine.
 
-```
-bash
-cd limitedgoods
-./gradlew test
+```powershell
+docker compose up -d
 ```
 
+```powershell
+.\gradlew.bat bootRun
+```
 
-## 9. 회고 / 개선 예정
-이번 프로젝트를 통해 백엔드 시스템에서 중요한 것은 단순 기능 구현보다 실패 상황에서도 데이터 정합성을 유지하는
+Local endpoints:
 
-설계라는 점을 배웠습니다.
+- PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
+- Backend API: `localhost:8080`
 
+### 2. Backend Container Demo
 
-한정 수량 상품 주문 기능을 구현하면서 동시 주문으로 인한 초과 판매, 중복 결제, 결제 성공 후 내부 처리 실패, Kafka
+Use this when running the backend itself as a Docker container.
 
-이벤트 유실과 중복 소비 문제를 고민했습니다. 특히 재고 동시성 문제에서는 비관적 락, 낙관적 락, Redis 방식을 비교했고, k6 성능
+```powershell
+docker compose `
+  -f docker-compose.yml `
+  -f docker-compose.kafka.yml `
+  -f docker-compose.app.yml `
+  up -d --build
+```
 
-테스트를 통해 요청이 몰리는 상황에서는 Redis Lua Script 기반 원자 차감 방식이 더 안정적인 처리량을 보인다는 점을 확인했습니다.
+### 3. Full Demo With Monitoring
 
+Use this for portfolio demos, monitoring screenshots, and load-test evidence.
 
-결제 흐름에서는 Idempotency-Key를 사용해 중복 결제를 방지하고, PAYMENT_APPROVED 상태를 추가해 PG 결제
+```powershell
+docker compose `
+  -f docker-compose.yml `
+  -f docker-compose.kafka.yml `
+  -f docker-compose.app.yml `
+  -f docker-compose.observability.yml `
+  up -d --build
+```
 
-승인과 내부 주문 확정을 분리했습니다. 이를 통해 결제 성공 후 내부 처리에 실패하더라도 PG를 다시 호출하지 않고 주문
+Demo endpoints:
 
-확정 단계만 재시도할 수 있도록 설계했습니다.
+- Backend API: `http://localhost:8080`
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000`
 
+## Environment Variables
 
-또한 Transactional Outbox와 ProcessedEvent를 적용하며 이벤트 기반 구조에서는 메시지 유실과 중복 소비를 전제로
+Copy `.env.example` to `.env` before customizing runtime values.
 
-설계해야 한다는 점을 배웠습니다. Kafka를 사용하는 것 자체보다, 실패했을 때 이벤트를 어떻게 추적하고 재처리할 수
+```powershell
+Copy-Item .env.example .env
+```
 
-있는지가 더 중요하다는 것을 체감했습니다.
+Important variables:
 
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `JWT_SECRET`
+- `SPRING_PROFILES_ACTIVE`
+- `APP_PORT`
+- `REDIS_PORT`
+- `KAFKA_PORT`
 
-아쉬운 점은 PostgreSQL, Redis, Kafka를 포함한 통합 테스트와 Redis 장애 상황에 대한 fallback 전략이 충분하지
+For production-like environments, secrets such as database passwords, JWT secrets,
+and Grafana passwords should be injected through environment variables or a secret
+manager instead of being stored in source code.
 
-않다는 점이었습니다. 앞으로는 Testcontainers 기반 통합 테스트, Outbox 재시도 정책 고도화, 장애 상황별 복구 전략까지
+## Tests
 
-보완해보고 싶습니다.
-이번 프로젝트는 기능 구현 중심에서 벗어나 동시성, 멱등성, 장애 복구, 이벤트 정합성을 고려하는 백엔드 설계
+```powershell
+.\gradlew.bat test
+```
 
-경험이었습니다. 이를 통해 안정적으로 운영 가능한 시스템을 설계하는 개발자로 성장하고 싶다는 방향성을 더 분명히 할 수
+Main test targets:
 
-있었습니다.
+- Redis inventory reservation
+- Overselling prevention under concurrent order requests
+- Order creation and payment flow
+- Duplicate payment request prevention
+- Order expiration and inventory recovery
+- Refund and cancellation state transitions
+- Outbox event publishing and duplicate processing prevention
 
+## CI/CD
+
+GitHub Actions runs backend tests automatically on every push and on pull requests
+targeting `main` or `develop`.
+
+Workflow file:
+
+- `.github/workflows/backend-ci.yml`
+
+The backend CI pipeline:
+
+1. Checks out the repository
+2. Sets up Java 17
+3. Starts PostgreSQL, Redis, and Kafka with `docker-compose.ci.yml`
+4. Waits for required services to become available
+5. Runs `./gradlew test --no-daemon`
+6. Uploads Gradle test reports as an artifact
+7. Stops and removes CI dependency containers
+
+CI dependency file:
+
+- `docker-compose.ci.yml`
+
+## Load Testing
+
+The k6 script is located at `k6/k6-order-test.js`.
+
+Load-test goals:
+
+- Verify that successful orders never exceed available stock
+- Check Redis reservation and database inventory consistency
+- Measure order API latency and failure rate under concurrent traffic
+
+Example scenario:
+
+```text
+100+ users request orders at the same time for a product with stock 10.
+Only up to 10 orders should succeed.
+The rest should fail because of insufficient stock.
+```
+
+## Monitoring
+
+The project uses Spring Boot Actuator, Prometheus, and Grafana.
+
+Metrics to observe:
+
+- HTTP request count
+- HTTP response latency
+- Order creation success/failure count
+- Payment success/failure count
+- Expired order count
+- JVM memory
+- Application health check
+
+The Docker-specific Prometheus config is located at `monitoring/prometheus-docker.yml`.
+
+## DevOps Portfolio Direction
+
+This project is being expanded from a backend project into an operation-ready service.
+
+Planned DevOps work:
+
+- GitHub Actions test/build pipeline
+- Docker image build pipeline
+- Frontend static deployment
+- Low-cost backend cloud deployment
+- External PostgreSQL and Redis integration
+- Environment-specific configuration
+- Incident scenario documentation
+- k6 load-test result documentation
+- Grafana dashboard screenshots and metric explanations
+
+## Incident Scenarios To Document
+
+- Redis outage and its impact on order creation
+- Database connection failure and health check behavior
+- Kafka publish failure and outbox retry behavior
+- Failure after payment approval and recovery strategy
+- Deployment failure and rollback strategy
+- Traffic spike and bottleneck analysis
+
+## Cloud Deployment Strategy
+
+To reduce cost, the first deployment target should keep only the critical runtime
+path always-on.
+
+Initial low-cost deployment plan:
+
+- Frontend: Cloudflare Pages or S3/CloudFront
+- Backend: Render, Railway, Fly.io, or EC2
+- PostgreSQL: Neon or RDS
+- Redis: Upstash or Docker Redis on a small server
+
+Kafka, Prometheus, and Grafana can stay in the local/demo environment at first.
+For a larger production setup, these can be replaced or expanded with MSK, SQS,
+EventBridge, CloudWatch, or managed Grafana.
+
+## Portfolio Summary
+
+Limited Goods is a limited-stock commerce backend project containerized with Docker
+Compose. It validates production-style concerns such as Redis inventory reservation,
+payment idempotency, order expiration, Kafka outbox processing, Prometheus/Grafana
+monitoring, and k6 load testing.
