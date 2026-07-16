@@ -155,7 +155,7 @@ public class OrderService {
     @Transactional
     public OrderResponseDto finalizeApprovedPayment(Long userId, Long orderId) {
 
-        Order order = getOrderForUpdate(orderId, userId);
+       Order order = getOrderForUpdate(orderId, userId);
 
         if (order.getStatus() == OrderStatus.PAID) {
             return toResponse(order);
@@ -166,6 +166,9 @@ public class OrderService {
         }
 
         order.markPaid();
+
+        //product의 soldOut 재고 갯수 업데이트
+        updateProductSoldCount(userId, orderId);
 
         outboxEventService.save(
                 OutboxEventType.ORDER_PAID,
@@ -280,6 +283,16 @@ public class OrderService {
         }
 
         return order;
+    }
+
+    private void updateProductSoldCount(Long userId, Long orderId) {
+        List<OrderItem> orderItemList = orderRepository.findOrderItemsByOrder(orderId, userId);
+
+        for(OrderItem orderItem : orderItemList) {
+            productRepository.increaseSoldCount(
+                    orderItem.getProduct().getId(),
+                    orderItem.getQuantity());
+        }
     }
 
     @Transactional

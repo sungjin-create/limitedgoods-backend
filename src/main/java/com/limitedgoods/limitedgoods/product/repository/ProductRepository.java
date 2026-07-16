@@ -2,7 +2,9 @@ package com.limitedgoods.limitedgoods.product.repository;
 
 import com.limitedgoods.limitedgoods.backoffice.product.dto.BackofficeProductSummaryResponse;
 import com.limitedgoods.limitedgoods.backoffice.product.dto.BackofficeProductsResponse;
+import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.product.entity.Product;
+import com.limitedgoods.limitedgoods.user.entity.User;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -41,6 +43,14 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
      where p.id = :id
     """)
     int increaseStock(@Param("id") Long id, @Param("quantity") int quantity);
+
+    @Modifying
+    @Query("""
+    UPDATE Product p
+    SET p.soldCount = p.soldCount + :quantity
+    WHERE p.id = :productId
+    """)
+    void increaseSoldCount(Long productId, int quantity);
 
     @Query("""
         select p
@@ -97,7 +107,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         p.name,
         p.description,
         p.price,
-        p.stock
+        p.initialStock,
+        p.stock,
+        p.soldCount,
+        p.type,
+        p.visible,
+        p.saleStartAt,
+        p.saleEndAt
     )
     from Product p
     """)

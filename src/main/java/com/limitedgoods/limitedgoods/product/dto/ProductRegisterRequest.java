@@ -25,6 +25,8 @@ public class ProductRegisterRequest {
     @Positive(message = "하나이상의 숫자만 가능합니다.")
     private int stock;
 
+    private int initialStock;
+
     @NotNull(message = "type은 필수입니다.")
     private ProductType type;
 
