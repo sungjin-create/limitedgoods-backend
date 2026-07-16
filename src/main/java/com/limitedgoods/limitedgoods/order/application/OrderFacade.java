@@ -3,7 +3,7 @@ package com.limitedgoods.limitedgoods.order.application;
 import com.limitedgoods.limitedgoods.cart.service.CartService;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
-import com.limitedgoods.limitedgoods.idempotency.service.PaymentIdempotencyService;
+import com.limitedgoods.limitedgoods.payment.service.PaymentIdempotencyService;
 import com.limitedgoods.limitedgoods.order.dto.OrderItemsListDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderPaymentInfo;
 import com.limitedgoods.limitedgoods.order.dto.OrderRequestDto;

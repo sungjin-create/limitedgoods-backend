@@ -24,4 +24,6 @@ public class OrderItem {
     private int quantity;
 
     private int price;
+
+    private int lineTotalPrice;
 }
