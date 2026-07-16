@@ -6,6 +6,7 @@ import com.limitedgoods.limitedgoods.backoffice.order.dto.BackofficeMonitoringSu
 import com.limitedgoods.limitedgoods.order.dto.AdminOrderResponseDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderDetailResponseDto;
 import com.limitedgoods.limitedgoods.order.entity.Order;
+import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
@@ -304,5 +305,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
       and (o.createdAt <= :endAt)
     """)
     BackofficeMonitoringSummaryResponse getBackofficeMonitoringSummary();
+
+    @Query("""
+    select oi
+    from OrderItem oi
+    join oi.order o
+    where o.id = :orderId
+        and o.user.id = :userId
+    """)
+    List<OrderItem> findOrderItemsByOrder(Long orderId, Long userId);
 
 }
