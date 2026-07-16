@@ -27,6 +27,8 @@ public class ProductRegisterRequest {
 
     private int initialStock;
 
+    private Integer maxPurchaseQuantity;
+
     @NotNull(message = "type은 필수입니다.")
     private ProductType type;
 

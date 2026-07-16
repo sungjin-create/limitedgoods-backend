@@ -20,6 +20,7 @@ public class Product {
     private int initialStock;
     private int stock;
     private int soldCount;
+    private Integer maxPurchaseQuantity;
 
     @Enumerated(EnumType.STRING)
     private ProductType type;

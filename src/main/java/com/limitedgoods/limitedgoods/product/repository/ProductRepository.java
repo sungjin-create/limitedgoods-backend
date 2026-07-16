@@ -110,6 +110,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         p.initialStock,
         p.stock,
         p.soldCount,
+        p.maxPurchaseQuantity,
         p.type,
         p.visible,
         p.saleStartAt,

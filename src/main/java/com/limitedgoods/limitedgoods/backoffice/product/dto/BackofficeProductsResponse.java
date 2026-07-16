@@ -19,6 +19,7 @@ public class BackofficeProductsResponse {
     private int initialStock;
     private int stock;
     private int soldCount;
+    private Integer maxPurchaseQuantity;
     private ProductType type;
     private boolean visible;
     private LocalDateTime saleStartAt;

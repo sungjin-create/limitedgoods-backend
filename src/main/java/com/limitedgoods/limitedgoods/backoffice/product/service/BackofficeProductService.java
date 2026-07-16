@@ -49,6 +49,7 @@ public class BackofficeProductService {
         boolean visible = productRegisterRequest.isVisible();
         LocalDateTime saleStartAt = productRegisterRequest.getSaleStartAt();
         LocalDateTime saleEndAt = productRegisterRequest.getSaleEndAt();
+        Integer maxPurchaseQuantity = productRegisterRequest.getMaxPurchaseQuantity();
 
         if(saleStartAt == null || saleEndAt == null
                 || saleStartAt.isAfter(saleEndAt)) {
@@ -64,6 +65,7 @@ public class BackofficeProductService {
         product.setVisible(visible);
         product.setSaleStartAt(saleStartAt);
         product.setSaleEndAt(saleEndAt);
+        product.setMaxPurchaseQuantity(maxPurchaseQuantity);
 
         Product saveProduct = productRepository.save(product);
 
@@ -107,6 +109,7 @@ public class BackofficeProductService {
                 .description(product.getDescription())
                 .price(product.getPrice())
                 .stock(product.getStock())
+                .maxPurchaseQuantity(product.getMaxPurchaseQuantity())
                 .type(product.getType())
                 .visible(product.isVisible())
                 .saleStartAt(product.getSaleStartAt())

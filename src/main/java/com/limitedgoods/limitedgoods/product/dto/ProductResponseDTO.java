@@ -16,6 +16,7 @@ public class ProductResponseDTO {
     private String description;
     private int price;
     private int stock;
+    private Integer maxPurchaseQuantity;
     private ProductType type;
     private boolean visible;
     private LocalDateTime saleStartAt;
