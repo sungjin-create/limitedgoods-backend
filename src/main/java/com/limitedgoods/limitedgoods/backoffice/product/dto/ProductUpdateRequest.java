@@ -1,11 +1,15 @@
-package com.limitedgoods.limitedgoods.product.dto;
+package com.limitedgoods.limitedgoods.backoffice.product.dto;
 
+import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
+import com.limitedgoods.limitedgoods.product.entity.ProductType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -24,7 +28,15 @@ public class ProductUpdateRequest {
     @PositiveOrZero(message = "양수형태만 가능합니다.")
     private int price;
 
-    @NotNull(message = "수량은 필수입니다.")
-    @Positive(message = "하나이상의 숫자만 가능합니다.")
-    private int stock;
+    @Positive(message = "구매제한은 없거나, 1개 이상이어야 합니다.")
+    private Integer maxPurchaseQuantity;
+
+    @NotNull(message = "type은 필수입니다.")
+    private ProductType type;
+
+    @NotNull(message = "status는 필수입니다.")
+    private ProductStatus status;
+
+    private LocalDateTime saleStartAt;
+    private LocalDateTime saleEndAt;
 }

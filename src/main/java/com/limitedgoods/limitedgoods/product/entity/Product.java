@@ -25,8 +25,8 @@ public class Product {
     @Enumerated(EnumType.STRING)
     private ProductType type;
 
-    @Column(nullable = false)
-    private boolean visible = true;
+    @Enumerated(EnumType.STRING)
+    private ProductStatus status;
 
     private LocalDateTime saleStartAt;
     private LocalDateTime saleEndAt;

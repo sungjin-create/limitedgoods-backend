@@ -1,11 +1,11 @@
 package com.limitedgoods.limitedgoods.backoffice.product.controller;
 
-import com.limitedgoods.limitedgoods.backoffice.product.dto.BackofficeProductResponse;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductListResponse;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductRegisterRequest;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductResponse;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductUpdateRequest;
 import com.limitedgoods.limitedgoods.backoffice.product.service.BackofficeProductService;
 import com.limitedgoods.limitedgoods.common.response.ApiResponse;
-import com.limitedgoods.limitedgoods.product.dto.ProductRegisterRequest;
-import com.limitedgoods.limitedgoods.product.dto.ProductResponseDTO;
-import com.limitedgoods.limitedgoods.product.dto.ProductUpdateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,22 +20,23 @@ public class BackofficeProductController {
     private final BackofficeProductService backofficeProductService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<BackofficeProductResponse>> getBackofficeProduct(){
+    public ResponseEntity<ApiResponse<ProductListResponse>> getBackofficeProductList(){
 
         return ResponseEntity.ok(ApiResponse.success(backofficeProductService.getBackofficeProduct()));
     }
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse> productRegister(
+    public ResponseEntity<ApiResponse<ProductResponse>> productRegister(
             @Valid @RequestBody ProductRegisterRequest productRegisterRequest) {
-        ProductResponseDTO responseDTO = backofficeProductService.registerProduct(productRegisterRequest);
-        return ResponseEntity.ok(ApiResponse.success(responseDTO));
+        ProductResponse response = backofficeProductService.registerProduct(productRegisterRequest);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/update")
-    public ResponseEntity<ApiResponse> productUpdate(@Valid @RequestBody ProductUpdateRequest productUpdateRequest) {
-        ProductResponseDTO responseDTO = backofficeProductService.updateProduct(productUpdateRequest);
-        return ResponseEntity.ok(ApiResponse.success(responseDTO));
+    public ResponseEntity<ApiResponse<ProductResponse>> productUpdate(
+            @Valid @RequestBody ProductUpdateRequest productUpdateRequest) {
+        ProductResponse response = backofficeProductService.updateProduct(productUpdateRequest);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @DeleteMapping("/delete")

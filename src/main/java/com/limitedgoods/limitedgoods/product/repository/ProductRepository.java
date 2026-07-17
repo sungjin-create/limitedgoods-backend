@@ -1,10 +1,8 @@
 package com.limitedgoods.limitedgoods.product.repository;
 
-import com.limitedgoods.limitedgoods.backoffice.product.dto.BackofficeProductSummaryResponse;
-import com.limitedgoods.limitedgoods.backoffice.product.dto.BackofficeProductsResponse;
-import com.limitedgoods.limitedgoods.order.entity.Order;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductSummaryResponse;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductResponse;
 import com.limitedgoods.limitedgoods.product.entity.Product;
-import com.limitedgoods.limitedgoods.user.entity.User;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -92,17 +90,17 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     long countLowStockProducts(@Param("threshold") int threshold);
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.backoffice.product.dto.BackofficeProductSummaryResponse(
+    select new com.limitedgoods.limitedgoods.backoffice.product.dto.ProductSummaryResponse(
         count(*),
         coalesce(sum(case when p.stock <= 5 then 1 else 0 end), 0),
         coalesce(sum(case when p.stock = 0 then 1 else 0 end), 0)
     )
     from Product p
     """)
-    BackofficeProductSummaryResponse getBackofficeProductSummary();
+    ProductSummaryResponse getBackofficeProductSummary();
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.backoffice.product.dto.BackofficeProductsResponse(
+    select new com.limitedgoods.limitedgoods.backoffice.product.dto.ProductResponse(
         p.id,
         p.name,
         p.description,
@@ -112,12 +110,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         p.soldCount,
         p.maxPurchaseQuantity,
         p.type,
-        p.visible,
+        p.status,
         p.saleStartAt,
         p.saleEndAt
     )
     from Product p
     """)
-    List<BackofficeProductsResponse> findProductList();
+    List<ProductResponse> findProductList();
 
 }

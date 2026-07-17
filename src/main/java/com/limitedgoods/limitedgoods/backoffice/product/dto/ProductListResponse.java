@@ -4,11 +4,14 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 @Builder
-public class BackofficeProductSummaryResponse {
-    private long totalCount;
-    private long lowStock;
-    private long soldOut;
+public class ProductListResponse {
+
+    private ProductSummaryResponse summary;
+    private List<ProductResponse> products;
+
 }

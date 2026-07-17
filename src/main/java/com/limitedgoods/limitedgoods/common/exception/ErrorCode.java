@@ -40,6 +40,26 @@ public enum ErrorCode {
             "PRODUCT_003",
             "유효하지 않은 상품 등록기간입니다."
     ),
+    HAS_NO_SALE_TIME(
+            HttpStatus.BAD_REQUEST,
+            "PRODUCT_004",
+            "상품등록 기간은 필수입니다."
+    ),
+    INVALID_PRODUCT_STATUS_TRANSITION(
+            HttpStatus.BAD_REQUEST,
+            "PRODUCT_005",
+            "상품 상태변경 정책을 위반합니다."
+    ),
+    SALE_START_MUST_BE_FUTURE(
+            HttpStatus.BAD_REQUEST,
+            "PRODUCT_006",
+            "SCHEDULED 상품 판매 시작은 반드시 현재보다 나중이어야합니다."
+    ),
+    SALE_ALREADY_ENDED(
+            HttpStatus.BAD_REQUEST,
+            "PRODUCT_007",
+            "상품 판매 종료시각이 현재보다 이전입니다."
+    ),
 
     ORDER_NOT_FOUND(
             HttpStatus.NOT_FOUND,

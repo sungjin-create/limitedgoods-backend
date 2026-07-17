@@ -1,5 +1,6 @@
-package com.limitedgoods.limitedgoods.product.dto;
+package com.limitedgoods.limitedgoods.backoffice.product.dto;
 
+import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
 import com.limitedgoods.limitedgoods.product.entity.ProductType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -21,19 +22,18 @@ public class ProductRegisterRequest {
     @PositiveOrZero(message = "양수형태만 가능합니다.")
     private int price;
 
-    @NotNull(message = "수량은 필수입니다.")
-    @Positive(message = "하나이상의 숫자만 가능합니다.")
-    private int stock;
-
+    @NotNull(message = "초도 재고는 필수입니다.")
+    @Positive(message = "초도 재고는 1개 이상이어야 합니다.")
     private int initialStock;
 
+    @Positive(message = "구매제한은 없거나, 1개 이상이어야 합니다.")
     private Integer maxPurchaseQuantity;
 
     @NotNull(message = "type은 필수입니다.")
     private ProductType type;
 
-    @NotNull(message = "상품의 보여짐 여부는 필수입니다.")
-    private boolean visible;
+    @NotNull(message = "status는 필수입니다.")
+    private ProductStatus status;
 
     private LocalDateTime saleStartAt;
     private LocalDateTime saleEndAt;
