@@ -1,15 +1,15 @@
 package com.limitedgoods.limitedgoods.product.repository;
 
-import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductSummaryResponse;
 import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductResponse;
 import com.limitedgoods.limitedgoods.product.entity.Product;
+import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
@@ -90,16 +90,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     long countLowStockProducts(@Param("threshold") int threshold);
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.backoffice.product.dto.ProductSummaryResponse(
-        count(*),
-        coalesce(sum(case when p.stock <= 5 then 1 else 0 end), 0),
-        coalesce(sum(case when p.stock = 0 then 1 else 0 end), 0)
-    )
-    from Product p
-    """)
-    ProductSummaryResponse getBackofficeProductSummary();
-
-    @Query("""
     select new com.limitedgoods.limitedgoods.backoffice.product.dto.ProductResponse(
         p.id,
         p.name,
@@ -115,7 +105,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         p.saleEndAt
     )
     from Product p
+    where p.status = :status
     """)
-    List<ProductResponse> findProductList();
+    List<ProductResponse> findAllProductsByStatus(ProductStatus status);
+
+
+
+
 
 }

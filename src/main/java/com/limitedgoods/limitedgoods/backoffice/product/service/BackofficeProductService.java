@@ -1,6 +1,7 @@
 package com.limitedgoods.limitedgoods.backoffice.product.service;
 
 import com.limitedgoods.limitedgoods.backoffice.product.dto.*;
+import com.limitedgoods.limitedgoods.backoffice.product.query.BackofficeProductQueryRepository;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.product.entity.Product;
@@ -24,6 +25,7 @@ import static com.limitedgoods.limitedgoods.product.entity.ProductStatus.*;
 public class BackofficeProductService {
 
     private final ProductRepository productRepository;
+    private final BackofficeProductQueryRepository backofficeProductQueryRepository;
 
     private static final Map<ProductStatus, Set<ProductStatus>> ALLOWED_TRANSITIONS =
             Map.of(
@@ -36,14 +38,16 @@ public class BackofficeProductService {
                     ARCHIVED, EnumSet.noneOf(ProductStatus.class)
             );
 
-    public ProductListResponse getBackofficeProduct() {
-
+    public ProductListResponse findBackofficeProductList(ProductStatus status) {
         ProductSummaryResponse productSummary =
-                productRepository.getBackofficeProductSummary();
+                backofficeProductQueryRepository.findProductSummary();
 
-
-        List<ProductResponse> productList =
-                productRepository.findProductList();
+        List<ProductResponse> productList;
+        if(status == null) {
+            productList = backofficeProductQueryRepository.findAllProducts();
+        } else {
+            productList = backofficeProductQueryRepository.findAllProductsByStatus(status);
+        }
 
         return ProductListResponse.builder()
                 .summary(productSummary)
@@ -64,8 +68,10 @@ public class BackofficeProductService {
         LocalDateTime saleStartAt = productRegisterRequest.getSaleStartAt();
         LocalDateTime saleEndAt = productRegisterRequest.getSaleEndAt();
 
+        //상품 등록시 가능한 상태검사
+        validateStatusForRegister(status);
         //판매 시작, 판매 끝 값 검사
-        checkStatusWithSaleTime(status, saleStartAt, saleEndAt);
+        validateSaleScheduleForStatus(status, saleStartAt, saleEndAt);
 
         Product product = new Product();
         product.setName(name);
@@ -97,11 +103,13 @@ public class BackofficeProductService {
         LocalDateTime nextSaleStartAt = productUpdateRequest.getSaleStartAt();
         LocalDateTime nextSaleEndAt = productUpdateRequest.getSaleEndAt();
 
-        Product currentProduct = productRepository.findById(id)
+        Product currentProduct = productRepository.findByIdWithLock(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
 
+        //상태변경 검사
         validateStatusTransition(currentProduct.getStatus(), nextStatus);
 
+        //상태에 따른 일정 변경 검사
         validateSaleScheduleForStatus(nextStatus, nextSaleStartAt, nextSaleEndAt);
 
         currentProduct.setName(nextName);
@@ -113,36 +121,49 @@ public class BackofficeProductService {
         currentProduct.setSaleStartAt(nextSaleStartAt);
         currentProduct.setSaleEndAt(nextSaleEndAt);
 
-
         return toResponse(currentProduct);
     }
 
     @Transactional
-    public void deleteProduct (Long id) {
-        productRepository.findById(id)
+    public ProductResponse adjustStock(StockAdjustmentRequest request) {
+        Product product = productRepository.findByIdWithLock(request.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
 
-        productRepository.deleteById(id);
+        int quantity = request.getQuantity();
+        int currentStock = product.getStock();
+        int adjustedStock;
 
+        ProductStatus status = product.getStatus();
+
+        if(status == ACTIVE || status == ARCHIVED) {
+            throw new BusinessException(ErrorCode.STOCK_ADJUSTMENT_NOT_ALLOWED_STATUS, "현재 STATUS = " + status);
+        }
+
+        switch (request.getAdjustmentType()) {
+            case INCREASE -> {
+                if (quantity == 0) throw new BusinessException(ErrorCode.INVALID_INPUT);
+                long increasedStock = (long) currentStock + quantity;
+                if (increasedStock > Integer.MAX_VALUE) throw new BusinessException(ErrorCode.INVALID_INPUT);
+                adjustedStock = (int) increasedStock;
+            }
+            case DECREASE -> {
+                if (quantity == 0) throw new BusinessException(ErrorCode.INVALID_INPUT);
+                if (currentStock < quantity) throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
+                adjustedStock = currentStock - quantity;
+            }
+            default -> throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+
+        product.setStock(adjustedStock);
+        return toResponse(product);
     }
 
-    private void checkStatusWithSaleTime(ProductStatus status, LocalDateTime saleStartAt, LocalDateTime saleEndAt) {
-        //판매 예정인 경우는 시간입력 필수
-        if(status.equals(ProductStatus.SCHEDULED)) {
-            if(saleStartAt == null || saleEndAt == null) {
-                throw new BusinessException(ErrorCode.HAS_NO_SALE_TIME);
-            }
-        }
-
-        //시작시간, 종료시간 중 하나만 입력되는 경우 예외처리
-        if ((saleStartAt == null) != (saleEndAt == null)) {
-            throw new BusinessException(ErrorCode.HAS_NO_SALE_TIME);
-        }
-
-        //시작시간 <= 종료시간이 아닌 경우 예외처리
-        if(saleStartAt != null && !saleStartAt.isBefore(saleEndAt)) {
-            throw new BusinessException(ErrorCode.INVALID_PRODUCT_TIME);
-        }
+    @Transactional
+    public ProductStockOverViewResponse findProductStockOverView(Long productId){
+        ProductOrderSummaryQueryResult queryResult =
+                backofficeProductQueryRepository.findProductOrdersSummary(productId)
+                .orElseThrow(()->new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
+        return ProductStockOverViewResponse.from(queryResult);
     }
 
     private ProductResponse toResponse(Product product) {
@@ -151,7 +172,9 @@ public class BackofficeProductService {
                 .name(product.getName())
                 .description(product.getDescription())
                 .price(product.getPrice())
+                .initialStock(product.getInitialStock())
                 .stock(product.getStock())
+                .soldCount(product.getSoldCount())
                 .maxPurchaseQuantity(product.getMaxPurchaseQuantity())
                 .type(product.getType())
                 .status(product.getStatus())
@@ -160,10 +183,7 @@ public class BackofficeProductService {
                 .build();
     }
 
-    private void validateStatusTransition(
-            ProductStatus currentStatus,
-            ProductStatus nextStatus
-    ) {
+    private void validateStatusTransition(ProductStatus currentStatus, ProductStatus nextStatus) {
         if (currentStatus == nextStatus) {
             return; // 일정만 수정하는 경우
         }
@@ -199,6 +219,12 @@ public class BackofficeProductService {
                 && saleEndAt != null
                 && !saleEndAt.isAfter(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.SALE_ALREADY_ENDED);
+        }
+    }
+
+    private void validateStatusForRegister(ProductStatus status) {
+        if(status != DRAFT && status != PREPARING && status != SCHEDULED && status != ACTIVE) {
+            throw new BusinessException(ErrorCode.INVALID_PRODUCT_STATUS_REGISTER);
         }
     }
 

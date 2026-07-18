@@ -1,14 +1,9 @@
 package com.limitedgoods.limitedgoods.backoffice.product.dto;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+public record ProductSummaryResponse (
+        Long totalCount,
+        Long lowStockCount,
+        Long soldOutCount
+){
 
-@Getter
-@Setter
-@Builder
-public class ProductSummaryResponse {
-    private long totalCount;
-    private long lowStock;
-    private long soldOut;
 }

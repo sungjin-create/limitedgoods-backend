@@ -6,12 +6,10 @@ import lombok.Setter;
 
 import java.util.List;
 
-@Getter
-@Setter
 @Builder
-public class ProductListResponse {
-
-    private ProductSummaryResponse summary;
-    private List<ProductResponse> products;
+public record ProductListResponse (
+        ProductSummaryResponse summary,
+        List<ProductResponse> products
+){
 
 }

@@ -1,14 +1,11 @@
 package com.limitedgoods.limitedgoods.backoffice.product.controller;
 
-import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductListResponse;
-import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductRegisterRequest;
-import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductResponse;
-import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductUpdateRequest;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.*;
 import com.limitedgoods.limitedgoods.backoffice.product.service.BackofficeProductService;
 import com.limitedgoods.limitedgoods.common.response.ApiResponse;
+import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,9 +17,9 @@ public class BackofficeProductController {
     private final BackofficeProductService backofficeProductService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<ProductListResponse>> getBackofficeProductList(){
-
-        return ResponseEntity.ok(ApiResponse.success(backofficeProductService.getBackofficeProduct()));
+    public ResponseEntity<ApiResponse<ProductListResponse>> getBackofficeProductList(
+            @RequestParam(required = false) ProductStatus status) {
+        return ResponseEntity.ok(ApiResponse.success(backofficeProductService.findBackofficeProductList(status)));
     }
 
     @PostMapping("/register")
@@ -32,22 +29,24 @@ public class BackofficeProductController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PostMapping("/update")
+    @PutMapping("/update")
     public ResponseEntity<ApiResponse<ProductResponse>> productUpdate(
             @Valid @RequestBody ProductUpdateRequest productUpdateRequest) {
         ProductResponse response = backofficeProductService.updateProduct(productUpdateRequest);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @DeleteMapping("/delete")
-    public ResponseEntity<ApiResponse> productDelete(@RequestParam Long id) {
-        if(id == null){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
+    @PutMapping("/stock")
+    public ResponseEntity<ApiResponse<ProductResponse>> adjustStock(
+            @Valid @RequestBody StockAdjustmentRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(backofficeProductService.adjustStock(request)));
+    }
 
-        backofficeProductService.deleteProduct(id);
-
-        return ResponseEntity.ok(ApiResponse.success(id));
+    @GetMapping("/{productId}/stock-overview")
+    public ResponseEntity<ApiResponse<ProductStockOverViewResponse>> getProductStockOverView(
+            @PathVariable Long productId) {
+        ProductStockOverViewResponse response = backofficeProductService.findProductStockOverView(productId);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
 }

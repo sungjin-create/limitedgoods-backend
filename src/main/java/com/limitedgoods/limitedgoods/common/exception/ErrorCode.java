@@ -60,6 +60,16 @@ public enum ErrorCode {
             "PRODUCT_007",
             "상품 판매 종료시각이 현재보다 이전입니다."
     ),
+    INVALID_PRODUCT_STATUS_REGISTER(
+            HttpStatus.BAD_REQUEST,
+            "PRODUCT_008",
+            "상품 상태 등록 정책을 위반합니다."
+    ),
+    STOCK_ADJUSTMENT_NOT_ALLOWED_STATUS(
+            HttpStatus.BAD_REQUEST,
+            "PRODUCT_009",
+            "재고를 변경할 수 있는 상품상태가 아닙니다."
+    ),
 
     ORDER_NOT_FOUND(
             HttpStatus.NOT_FOUND,

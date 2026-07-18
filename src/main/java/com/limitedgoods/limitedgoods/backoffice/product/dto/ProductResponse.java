@@ -6,24 +6,20 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class ProductResponse {
-
-    private Long id;
-    private String name;
-    private String description;
-    private int price;
-    private int initialStock;
-    private int stock;
-    private int soldCount;
-    private Integer maxPurchaseQuantity;
-    private ProductType type;
-    private ProductStatus status;
-    private LocalDateTime saleStartAt;
-    private LocalDateTime saleEndAt;
+public record ProductResponse (
+    Long id,
+    String name,
+    String description,
+    int price,
+    int initialStock,
+    int stock,
+    int soldCount,
+    Integer maxPurchaseQuantity,
+    ProductType type,
+    ProductStatus status,
+    LocalDateTime saleStartAt,
+    LocalDateTime saleEndAt
+){
 
 }
