@@ -11,8 +11,10 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
@@ -40,34 +42,57 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Modifying(flushAutomatically = true)
     @Query("""
-        update Product p
+    update Product p
         set p.stock = p.stock - :quantity
-        where p.id = :id
-          and p.stock >= :quantity
-        """)
-    int decreaseStock(@Param("id") Long id, @Param("quantity") int quantity);
+    where p.id = :productId
+        and p.stock >= :quantity
+        and (
+            p.status = :activeStatus
+            or (
+                p.status = :scheduledStatus
+                and p.saleStartAt <= current_timestamp
+            )
+       )
+        and (
+            p.saleEndAt is null
+            or p.saleEndAt > current_timestamp
+        )
+    """)
+    int decreaseStockIfPurchasable(
+            @Param("productId") Long productId,
+            @Param("quantity") int quantity,
+            @Param("activeStatus") ProductStatus activeStatus,
+            @Param("scheduledStatus") ProductStatus scheduledStatus);
+
+    @Query("""
+    select p.id
+        from Product p
+    where p.id in :productIds
+        and p.stock = 0
+    """)
+    List<Long> findSoldOutProductIds(@Param("productIds") Collection<Long> productIds);
 
     @Modifying(flushAutomatically = true)
     @Query("""
     update Product p
-       set p.stock = p.stock + :quantity
+        set p.stock = p.stock + :quantity
      where p.id = :id
     """)
     int increaseStock(@Param("id") Long id, @Param("quantity") int quantity);
 
     @Modifying
     @Query("""
-    UPDATE Product p
-    SET p.soldCount = p.soldCount + :quantity
-    WHERE p.id = :productId
+    update Product p
+        set p.soldCount = p.soldCount + :quantity
+    where p.id = :productId
     """)
     void increaseSoldCount(Long productId, int quantity);
 
     @Query("""
-        select p
-        from Product p
-        where upper(p.name) like upper(concat('%', :keyword, '%'))
-            or upper(p.description) like upper(concat('%', :keyword, '%'))
+    select p
+    from Product p
+    where upper(p.name) like upper(concat('%', :keyword, '%'))
+        or upper(p.description) like upper(concat('%', :keyword, '%'))
     """)
     Page<Product> searchByKeyword(Pageable pageable, @Param("keyword") String keyword);
 
@@ -75,7 +100,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     select case when count(p) > 0 then true else false end
     from Product p
     where p.id = :productId
-      and p.stock <= 0
+        and p.stock <= 0
     """)
     boolean isSoldOut(@Param("productId") Long productId);
 
@@ -98,17 +123,17 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     select count(p)
     from Product p
     where p.stock <= :threshold
-      and p.stock > 0
+        and p.stock > 0
     """)
     long countLowStockProducts(@Param("threshold") int threshold);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
     update Product p
-       set p.status = :activeStatus,
-           p.updatedAt = current_timestamp
-     where p.status = :scheduledStatus
-       and p.saleStartAt <= current_timestamp
+        set p.status = :activeStatus,
+            p.updatedAt = current_timestamp
+    where p.status = :scheduledStatus
+        and p.saleStartAt <= current_timestamp
     """)
     int activateProductsReadyForSale(
             @Param("activeStatus") ProductStatus activeStatus,

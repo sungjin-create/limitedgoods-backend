@@ -4,9 +4,10 @@ import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEventType;
 import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventService;
-import com.limitedgoods.limitedgoods.event.payload.OrderCanceledEvent;
-import com.limitedgoods.limitedgoods.event.payload.OrderExpiredEvent;
-import com.limitedgoods.limitedgoods.event.payload.OrderPaidEvent;
+import com.limitedgoods.limitedgoods.event.payload.order.OrderCanceledEvent;
+import com.limitedgoods.limitedgoods.event.payload.order.OrderExpiredEvent;
+import com.limitedgoods.limitedgoods.event.payload.order.OrderPaidEvent;
+import com.limitedgoods.limitedgoods.event.payload.order.OrderPaidItem;
 import com.limitedgoods.limitedgoods.order.dto.OrderDetailResponseDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderItemsListDto;
 import com.limitedgoods.limitedgoods.order.dto.OrderPaymentInfo;
@@ -17,6 +18,7 @@ import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import com.limitedgoods.limitedgoods.order.repository.OrderItemRepository;
 import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
 import com.limitedgoods.limitedgoods.product.entity.Product;
+import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import com.limitedgoods.limitedgoods.user.entity.User;
 import com.limitedgoods.limitedgoods.user.repository.UserRepository;
@@ -27,13 +29,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 
 @Slf4j
@@ -76,34 +74,26 @@ public class OrderService {
         List<OrderItemsListDto> sortedItems = items.stream()
                 .sorted(Comparator.comparing(OrderItemsListDto::getProductId))
                 .toList();
+        Set<Long> productIds = new HashSet<>();
+
+        //기존 주문 취소 및 기존 주문의 재고 복구
+        cancelActivePendingOrder(userId);
 
         for (OrderItemsListDto item : sortedItems) {
-            Product product = productRepository.findById(item.getProductId())
+            Product product =productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
 
-            int updated = productRepository.decreaseStock(
+            int updated = productRepository.decreaseStockIfPurchasable(
                     product.getId(),
-                    item.getQuantity()
+                    item.getQuantity(),
+                    ProductStatus.ACTIVE,
+                    ProductStatus.SCHEDULED
             );
 
-            if(updated == 0) {
+            if (updated == 0) {
                 throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
             }
-            int remainingStock = productRepository.findStockById(
-                    product.getId()
-            ).orElseThrow(() ->
-                    new BusinessException(
-                            ErrorCode.INVALID_PRODUCT_ID
-                    )
-            );
-
-            /*
-             * 마지막 수량을 주문했다면 DB 커밋 후
-             * Redis 품절 캐시를 등록한다.
-             */
-            if (remainingStock == 0) {
-                soldOutCacheService.markSoldOutAfterCommit(product.getId());
-            }
+            productIds.add(product.getId());
 
             totalPrice += product.getPrice() * item.getQuantity();
 
@@ -114,6 +104,10 @@ public class OrderService {
                     .build());
         }
 
+        List<Long> soldOutProductIds =
+                productRepository.findSoldOutProductIds(productIds);
+        soldOutProductIds.forEach(soldOutCacheService::markSoldOutAfterCommit);
+
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(reservationSeconds);
 
         Order order = Order.create(user, totalPrice, expiresAt, checkoutToken);
@@ -121,8 +115,8 @@ public class OrderService {
 
         for (OrderItem orderItem : orderItems) {
             orderItem.setOrder(savedOrder);
-            orderItemRepository.save(orderItem);
         }
+        orderItemRepository.saveAll(orderItems);
 
         return toResponse(savedOrder);
     }
@@ -177,8 +171,16 @@ public class OrderService {
                 new OrderPaidEvent(
                         order.getId(),
                         userId,
+                        order.getUser().getEmail(),
                         order.getTotalPrice(),
-                        LocalDateTime.now()
+                        LocalDateTime.now(),
+                        orderItemRepository.findByOrderId(order.getId()).stream()
+                                .map(item -> new OrderPaidItem(
+                                        item.getProduct().getId(),
+                                        item.getQuantity(),
+                                        item.getPrice()
+                                ))
+                                .toList()
                 )
         );
 
@@ -249,6 +251,34 @@ public class OrderService {
         }
 
         return order;
+    }
+
+    private void cancelActivePendingOrder(Long userId) {
+        List<Order> orderList = orderRepository.findOrderByUserIdAndStatusIn(userId,
+                List.of(OrderStatus.CREATED,
+                        OrderStatus.PAYMENT_FAILED,
+                        OrderStatus.PAYMENT_PENDING,
+                        OrderStatus.PAYMENT_APPROVED));
+
+        for (Order order : orderList) {
+            if (order.getStatus() == OrderStatus.PAYMENT_PENDING
+                    || order.getStatus() == OrderStatus.PAYMENT_APPROVED) {
+                throw new BusinessException(ErrorCode.ORDER_STARTING_PAYMENT);
+            }
+
+            // CREATED, PAYMENT_FAILED → 직접 처리 (expireOrder 호출 대신)
+            List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+
+            for (OrderItem item : items) {
+                productRepository.increaseStock(
+                        item.getProduct().getId(),
+                        item.getQuantity()
+                );
+                soldOutCacheService.clearSoldOutAfterCommit(item.getProduct().getId());
+            }
+
+            order.markExpired();
+        }
     }
 
     private OrderDetailResponseDto toDetailResponse(Order order, OrderItem item) {
@@ -408,35 +438,6 @@ public class OrderService {
                                 OrderStatus.PAYMENT_APPROVED))
                 .map(this::toResponse)
                 .orElse(null);
-    }
-
-    @Transactional
-    public void cancelActivePendingOrder(Long userId) {
-        List<Order> orderList = orderRepository.findOrderByUserIdAndStatusIn(userId,
-                                List.of(OrderStatus.CREATED,
-                                        OrderStatus.PAYMENT_FAILED,
-                                        OrderStatus.PAYMENT_PENDING,
-                                        OrderStatus.PAYMENT_APPROVED));
-
-                for (Order order : orderList) {
-                    if (order.getStatus() == OrderStatus.PAYMENT_PENDING
-                            || order.getStatus() == OrderStatus.PAYMENT_APPROVED) {
-                        throw new BusinessException(ErrorCode.ORDER_STARTING_PAYMENT);
-                    }
-
-                    // CREATED, PAYMENT_FAILED → 직접 처리 (expireOrder 호출 대신)
-                    List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
-
-                    for (OrderItem item : items) {
-                        productRepository.increaseStock(
-                                item.getProduct().getId(),
-                                item.getQuantity()
-                        );
-                        soldOutCacheService.clearSoldOutAfterCommit(item.getProduct().getId());
-            }
-
-            order.markExpired();
-        }
     }
 
 }
