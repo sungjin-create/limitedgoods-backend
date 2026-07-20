@@ -31,4 +31,6 @@ public class Product {
     private LocalDateTime saleStartAt;
     private LocalDateTime saleEndAt;
 
+    private LocalDateTime updatedAt;
+
 }

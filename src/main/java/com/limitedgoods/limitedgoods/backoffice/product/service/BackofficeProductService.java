@@ -38,6 +38,7 @@ public class BackofficeProductService {
                     ARCHIVED, EnumSet.noneOf(ProductStatus.class)
             );
 
+    @Transactional
     public ProductListResponse findBackofficeProductList(ProductStatus status) {
         ProductSummaryResponse productSummary =
                 backofficeProductQueryRepository.findProductSummary();
@@ -85,6 +86,7 @@ public class BackofficeProductService {
         product.setStatus(status);
         product.setSaleStartAt(saleStartAt);
         product.setSaleEndAt(saleEndAt);
+        product.setUpdatedAt(LocalDateTime.now());
 
         Product saveProduct = productRepository.save(product);
 
@@ -120,6 +122,7 @@ public class BackofficeProductService {
         currentProduct.setStatus(nextStatus);
         currentProduct.setSaleStartAt(nextSaleStartAt);
         currentProduct.setSaleEndAt(nextSaleEndAt);
+        currentProduct.setUpdatedAt(LocalDateTime.now());
 
         return toResponse(currentProduct);
     }
@@ -155,6 +158,7 @@ public class BackofficeProductService {
         }
 
         product.setStock(adjustedStock);
+        product.setUpdatedAt(LocalDateTime.now());
         return toResponse(product);
     }
 
@@ -164,6 +168,11 @@ public class BackofficeProductService {
                 backofficeProductQueryRepository.findProductOrdersSummary(productId)
                 .orElseThrow(()->new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
         return ProductStockOverViewResponse.from(queryResult);
+    }
+
+    @Transactional
+    public int updateScheduledToActive(){
+        return productRepository.activateProductsReadyForSale(ACTIVE, SCHEDULED);
     }
 
     private ProductResponse toResponse(Product product) {
