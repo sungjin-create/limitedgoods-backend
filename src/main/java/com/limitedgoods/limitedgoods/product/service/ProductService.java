@@ -2,12 +2,15 @@ package com.limitedgoods.limitedgoods.product.service;
 
 import com.limitedgoods.limitedgoods.product.dto.ProductResponseDTO;
 import com.limitedgoods.limitedgoods.product.entity.Product;
+import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import static com.limitedgoods.limitedgoods.product.entity.ProductStatus.*;
 
 @Service
 @RequiredArgsConstructor
@@ -17,7 +20,7 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> getProducts(Pageable pageable) {
-        return productRepository.findAll(pageable)
+        return productRepository.findProductByStatusIn(PREPARING, SCHEDULED, ACTIVE, PAUSED, pageable)
                 .map(this::toResponse);
     }
 

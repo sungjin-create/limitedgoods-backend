@@ -1,6 +1,5 @@
 package com.limitedgoods.limitedgoods.product.repository;
 
-import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductResponse;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
 import jakarta.persistence.LockModeType;
@@ -24,6 +23,20 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         where p.id = :id
         """)
     Optional<Product> findByIdWithLock(Long id);
+
+    @Query("""
+    select p
+    from Product p 
+    where p.status in(
+       :PREPARING, :SCHEDULED, :ACTIVE, :PAUSED
+    )
+    """)
+    Page<Product> findProductByStatusIn(
+            @Param("PREPARING") ProductStatus preparing,
+            @Param("SCHEDULED") ProductStatus scheduled,
+            @Param("ACTIVE") ProductStatus active,
+            @Param("PAUSED") ProductStatus paused,
+            Pageable pageable);
 
     @Modifying(flushAutomatically = true)
     @Query("""
@@ -89,28 +102,16 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     """)
     long countLowStockProducts(@Param("threshold") int threshold);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
-    select new com.limitedgoods.limitedgoods.backoffice.product.dto.ProductResponse(
-        p.id,
-        p.name,
-        p.description,
-        p.price,
-        p.initialStock,
-        p.stock,
-        p.soldCount,
-        p.maxPurchaseQuantity,
-        p.type,
-        p.status,
-        p.saleStartAt,
-        p.saleEndAt
-    )
-    from Product p
-    where p.status = :status
+    update Product p
+       set p.status = :activeStatus,
+           p.updatedAt = current_timestamp
+     where p.status = :scheduledStatus
+       and p.saleStartAt <= current_timestamp
     """)
-    List<ProductResponse> findAllProductsByStatus(ProductStatus status);
-
-
-
-
-
+    int activateProductsReadyForSale(
+            @Param("activeStatus") ProductStatus activeStatus,
+            @Param("scheduledStatus") ProductStatus scheduledStatus
+    );
 }
