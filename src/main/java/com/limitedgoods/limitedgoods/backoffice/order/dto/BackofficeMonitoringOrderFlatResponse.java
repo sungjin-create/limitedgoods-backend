@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 public class BackofficeMonitoringOrderFlatResponse {
     private Long orderId;
     private String email;
-    private int totalPrice;
+    private long totalPrice;
     private OrderStatus status;
     private LocalDateTime createdAt;
 

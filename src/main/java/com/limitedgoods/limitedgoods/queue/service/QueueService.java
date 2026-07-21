@@ -2,7 +2,8 @@ package com.limitedgoods.limitedgoods.queue.service;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
-import com.limitedgoods.limitedgoods.order.service.SoldOutCacheService;
+import com.limitedgoods.limitedgoods.queue.dto.QueueAdmissionResult;
+import com.limitedgoods.limitedgoods.product.service.ProductSoldOutCacheService;
 import com.limitedgoods.limitedgoods.queue.dto.QueueStatusResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +19,7 @@ public class QueueService {
     private static final int    ACTIVE_WINDOW = 50;
 
     private final RedisTemplate<String, String> redisTemplate;
-    private final SoldOutCacheService soldOutCacheService;
+    private final ProductSoldOutCacheService productSoldOutCacheService;
     private final AdmissionTokenService admissionTokenService;
 
     /**
@@ -27,35 +28,32 @@ public class QueueService {
      */
     public QueueStatusResponse enterQueue(Long userId, Long productId) {
         //SoldOut인 경우 큐 진입 차단
-        if (soldOutCacheService.isSoldOut(productId)) {
+        if (productSoldOutCacheService.isSoldOut(productId)) {
             throw new BusinessException(ErrorCode.QUEUE_SOLD_OUT);
         }
 
-        String queueProductKey = QUEUE_PREFIX + productId;
+        QueueAdmissionResult result = admissionTokenService
+                        .enterQueueAndIssueToken(userId, productId, ACTIVE_WINDOW);
 
-        // NX 옵션: 이미 있으면 기존 score(순번) 유지
-        redisTemplate.opsForZSet().addIfAbsent(
-                queueProductKey,
-                userId.toString(),
-                System.currentTimeMillis()
+        if (result.admitted()) {
+            return QueueStatusResponse.admitted(
+                    result.admissionToken()
+            );
+        }
+
+        return QueueStatusResponse.waiting(
+                result.position()
         );
-
-        return checkRankAndIssueToken(userId, productId, queueProductKey);
     }
 
     /**
      * 대기 상태 폴링
      */
     public QueueStatusResponse getStatus(Long userId, Long productId) {
-        String queueKey = QUEUE_PREFIX + productId;
-        Long rank = redisTemplate.opsForZSet().rank(queueKey, userId.toString());
-
-        if (rank == null) {
-            // 대기열에 없으면 재진입 처리
-            return enterQueue(userId, productId);
-        }
-
-        return checkRankAndIssueToken(userId, productId, queueKey);
+        return enterQueue(
+                userId,
+                productId
+        );
     }
 
     /**
@@ -67,21 +65,4 @@ public class QueueService {
         log.info("대기열 제거 userId={}, productId={}", userId, productId);
     }
 
-    private QueueStatusResponse checkRankAndIssueToken(Long userId, Long productId, String queueProductKey) {
-        Long rank = redisTemplate.opsForZSet().rank(queueProductKey, userId.toString());
-
-        if (rank == null) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-
-        if (rank < ACTIVE_WINDOW) {
-            // rank 0~49 → 입장 가능
-            String token = admissionTokenService.issueToken(userId, productId);
-            return QueueStatusResponse.admitted(token);
-        }
-
-        // rank 50 이상 → 대기 (1-based 위치로 변환)
-        int position = (int) (rank - ACTIVE_WINDOW + 1);
-        return QueueStatusResponse.waiting(position);
-    }
 }

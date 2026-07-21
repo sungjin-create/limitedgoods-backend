@@ -1,0 +1,187 @@
+package com.limitedgoods.limitedgoods.order.application.create;
+
+import com.limitedgoods.limitedgoods.common.exception.BusinessException;
+import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
+import com.limitedgoods.limitedgoods.queue.service.AdmissionTokenService;
+import com.limitedgoods.limitedgoods.queue.service.QueueService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import java.util.Optional;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class OrderAdmissionCoordinator {
+
+    private final AdmissionTokenService admissionTokenService;
+    private final QueueService queueService;
+
+    public Optional<OrderAdmissionClaim> claimIfRequired(
+            String admissionToken,
+            Long userId,
+            Long admissionProductId,
+            String checkoutToken,
+            String requestFingerprint
+    ) {
+        if (admissionProductId == null) {
+            return Optional.empty();
+        }
+
+        if (admissionToken == null || admissionToken.isBlank()) {
+            throw new BusinessException(
+                    ErrorCode.ADMISSION_TOKEN_REQUIRED
+            );
+        }
+
+        String claimId = createClaimId(
+                checkoutToken,
+                requestFingerprint
+        );
+
+        boolean claimed = admissionTokenService.claim(
+                admissionToken,
+                userId,
+                admissionProductId,
+                claimId
+        );
+
+        if (!claimed) {
+            throw new BusinessException(
+                    ErrorCode.ADMISSION_TOKEN_INVALID
+            );
+        }
+
+        return Optional.of(
+                new OrderAdmissionClaim(
+                        admissionToken,
+                        userId,
+                        admissionProductId,
+                        claimId
+                )
+        );
+    }
+
+    public void releaseAfterBusinessFailure(
+            Optional<OrderAdmissionClaim> claim
+    ) {
+        claim.ifPresent(this::releaseBestEffort);
+    }
+
+    public void completeAfterOrderCreated(
+            Optional<OrderAdmissionClaim> claim
+    ) {
+        claim.ifPresent(this::completeBestEffort);
+    }
+
+    /**
+     * 시스템 오류인 경우 PROCESSING 상태를 유지한다.
+     */
+    public void retainAfterUnknownFailure(
+            Optional<OrderAdmissionClaim> claim,
+            Throwable throwable
+    ) {
+        claim.ifPresent(value ->
+                log.error(
+                        "[주문 생성 결과 불명확] 입장 토큰 선점을 유지합니다. "
+                                + "userId={}, productId={}, claimId={}",
+                        value.userId(),
+                        value.productId(),
+                        value.claimId(),
+                        throwable
+                )
+        );
+    }
+
+    private String createClaimId(
+            String checkoutToken,
+            String requestFingerprint
+    ) {
+        return checkoutToken
+                + ":"
+                + requestFingerprint;
+    }
+
+    private void releaseBestEffort(
+            OrderAdmissionClaim claim
+    ) {
+        try {
+            boolean released =
+                    admissionTokenService.releaseClaim(
+                            claim.admissionToken(),
+                            claim.userId(),
+                            claim.productId(),
+                            claim.claimId()
+                    );
+
+            if (!released) {
+                log.warn(
+                        "[입장 토큰 선점 해제 실패] "
+                                + "userId={}, productId={}",
+                        claim.userId(),
+                        claim.productId()
+                );
+            }
+        } catch (Exception exception) {
+            log.error(
+                    "[입장 토큰 선점 해제 오류] "
+                            + "userId={}, productId={}",
+                    claim.userId(),
+                    claim.productId(),
+                    exception
+            );
+        }
+    }
+
+    private void completeBestEffort(
+            OrderAdmissionClaim claim
+    ) {
+        try {
+            queueService.removeFromQueue(
+                    claim.userId(),
+                    claim.productId()
+            );
+        } catch (Exception exception) {
+            log.error(
+                    "[주문 성공 후 대기열 제거 실패] "
+                            + "userId={}, productId={}",
+                    claim.userId(),
+                    claim.productId(),
+                    exception
+            );
+
+            // 현재 적용한 정책:
+            // 큐 제거가 실패하면 track 키를 남겨 만료 후 제거를 시도한다.
+            return;
+        }
+
+        try {
+            boolean consumed =
+                    admissionTokenService.completeConsumption(
+                            claim.admissionToken(),
+                            claim.userId(),
+                            claim.productId(),
+                            claim.claimId()
+                    );
+
+            if (!consumed) {
+                log.debug(
+                        "[입장 토큰 소비 확정 실패] "
+                                + "userId={}, productId={}",
+                        claim.userId(),
+                        claim.productId()
+                );
+            }
+        } catch (Exception exception) {
+            log.error(
+                    "[입장 토큰 소비 후처리 실패] "
+                            + "userId={}, productId={}",
+                    claim.userId(),
+                    claim.productId(),
+                    exception
+            );
+        }
+    }
+
+}

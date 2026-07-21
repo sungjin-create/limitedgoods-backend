@@ -2,8 +2,7 @@ package com.limitedgoods.limitedgoods.order.policy;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
-import com.limitedgoods.limitedgoods.order.dto.OrderProductValidationResult;
-import com.limitedgoods.limitedgoods.order.dto.OrderItemsListDto;
+import com.limitedgoods.limitedgoods.order.dto.request.OrderItemsListDto;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.entity.ProductType;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;

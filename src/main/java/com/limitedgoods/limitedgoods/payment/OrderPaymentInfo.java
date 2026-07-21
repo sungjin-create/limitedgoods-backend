@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.order.dto;
+package com.limitedgoods.limitedgoods.payment;
 
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 

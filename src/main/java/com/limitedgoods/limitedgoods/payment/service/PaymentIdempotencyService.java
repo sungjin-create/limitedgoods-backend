@@ -2,7 +2,7 @@ package com.limitedgoods.limitedgoods.payment.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.limitedgoods.limitedgoods.order.dto.OrderResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;

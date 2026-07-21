@@ -3,7 +3,7 @@ package com.limitedgoods.limitedgoods.order.repository;
 import com.limitedgoods.limitedgoods.backoffice.dashboard.dto.BackofficeRecentOrderResponse;
 import com.limitedgoods.limitedgoods.backoffice.order.dto.BackofficeMonitoringOrderFlatResponse;
 import com.limitedgoods.limitedgoods.backoffice.order.dto.BackofficeMonitoringSummaryResponse;
-import com.limitedgoods.limitedgoods.order.dto.OrderDetailResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderDetailResponseDto;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
@@ -51,7 +51,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     );
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.order.dto.OrderDetailResponseDto(
+    select new com.limitedgoods.limitedgoods.order.dto.response.OrderDetailResponseDto(
         o.id,
         o.totalPrice,
         o.status,

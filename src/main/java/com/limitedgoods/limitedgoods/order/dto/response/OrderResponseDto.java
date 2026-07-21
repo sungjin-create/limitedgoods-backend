@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.order.dto;
+package com.limitedgoods.limitedgoods.order.dto.response;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -20,4 +20,6 @@ public class OrderResponseDto {
     private String status;
 
     private LocalDateTime createdAt;
+
+    private LocalDateTime expiresAt;
 }

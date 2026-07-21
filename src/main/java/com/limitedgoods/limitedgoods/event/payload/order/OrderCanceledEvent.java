@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.event.payload;
+package com.limitedgoods.limitedgoods.event.payload.order;
 
 import java.time.LocalDateTime;
 

@@ -7,10 +7,19 @@ import lombok.*;
 @Entity
 @Getter
 @Setter
-@Table(name = "order_items")
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(
+        name = "order_items",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uq_order_items_order_product",
+                columnNames = {
+                        "order_id",
+                        "product_id"
+                }
+        )
+)
 public class OrderItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

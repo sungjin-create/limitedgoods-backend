@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.order.dto;
+package com.limitedgoods.limitedgoods.order.dto.response;
 
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import lombok.Getter;

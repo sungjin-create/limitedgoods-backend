@@ -1,6 +1,6 @@
-package com.limitedgoods.limitedgoods.order.idempotency;
+package com.limitedgoods.limitedgoods.order.application.create.idempotency;
 
-import com.limitedgoods.limitedgoods.order.dto.OrderItemsListDto;
+import com.limitedgoods.limitedgoods.order.dto.request.OrderItemsListDto;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -17,18 +17,9 @@ public class OrderRequestFingerprintGenerator {
 
     public String generate(List<OrderItemsListDto> items) {
         String canonicalRequest = items.stream()
-                .sorted(Comparator.comparing(
-                        OrderItemsListDto::getProductId
-                ))
-                .map(item ->
-                        item.getProductId()
-                                + ":"
-                                + item.getQuantity()
-                )
-                .reduce(
-                        VERSION,
-                        (result, item) -> result + "|" + item
-                );
+                .sorted(Comparator.comparing(OrderItemsListDto::getProductId))
+                .map(item -> item.getProductId() + ":" + item.getQuantity())
+                .reduce(VERSION, (result, item) -> result + "|" + item);
 
         return sha256(canonicalRequest);
     }
@@ -45,10 +36,7 @@ public class OrderRequestFingerprintGenerator {
             return HexFormat.of().formatHex(hash);
 
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(
-                    "SHA-256 알고리즘을 사용할 수 없습니다.",
-                    e
-            );
+            throw new IllegalStateException("SHA-256 알고리즘을 사용할 수 없습니다.", e );
         }
     }
 }

@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.order.service;
+package com.limitedgoods.limitedgoods.product.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +12,7 @@ import java.time.Duration;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class SoldOutCacheService {
+public class ProductSoldOutCacheService {
 
     private static final String KEY_PREFIX = "soldout:product:";
     private static final Duration SOLD_OUT_TTL = Duration.ofMinutes(10);

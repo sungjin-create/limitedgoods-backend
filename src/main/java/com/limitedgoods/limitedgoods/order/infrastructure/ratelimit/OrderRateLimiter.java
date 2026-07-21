@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.order.service;
+package com.limitedgoods.limitedgoods.order.infrastructure.ratelimit;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,7 +11,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class OrderRateLimitService {
+public class OrderRateLimiter {
 
     private static final int MAX_REQUESTS = 3;
     private static final long WINDOW_SECONDS = 10;

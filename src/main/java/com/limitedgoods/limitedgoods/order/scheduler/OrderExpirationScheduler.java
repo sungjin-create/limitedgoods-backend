@@ -1,5 +1,6 @@
 package com.limitedgoods.limitedgoods.order.scheduler;
 
+import com.limitedgoods.limitedgoods.order.application.expiration.OrderExpirationService;
 import com.limitedgoods.limitedgoods.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,15 +14,15 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OrderExpirationScheduler {
 
-    private final OrderService orderService;
+    private final OrderExpirationService orderExpirationService;
 
     @Scheduled(fixedDelay = 60000)
     public void expireOrders() {
-        List<Long> expiredOrderIds = orderService.findExpiredOrderIds();
+        List<Long> expiredOrderIds = orderExpirationService.findExpiredOrderIds();
 
         for (Long orderId : expiredOrderIds) {
             try {
-                orderService.expireOrder(orderId);
+                orderExpirationService.expireOrder(orderId);
             } catch (Exception e) {
                 log.warn("주문 만료 처리 실패. orderId={}", orderId, e);
             }
