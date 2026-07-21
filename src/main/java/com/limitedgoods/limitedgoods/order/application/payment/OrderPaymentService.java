@@ -67,7 +67,7 @@ public class OrderPaymentService {
         }
 
         if (order.getStatus() != OrderStatus.PAYMENT_APPROVED) {
-            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS, "현재 주문 상태 = " + order.getStatus());
         }
 
         order.markPaid();

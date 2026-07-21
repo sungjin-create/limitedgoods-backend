@@ -68,7 +68,7 @@ public class Order {
     public void markPaymentPending(LocalDateTime now) {
         if (this.status != OrderStatus.CREATED
                 && this.status != OrderStatus.PAYMENT_FAILED) {
-            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS, "현재 주문 상태 = " + this.status);
         }
 
         if (this.expiresAt == null || !this.expiresAt.isAfter(now)) {
@@ -89,7 +89,7 @@ public class Order {
     public void markExpired() {
         if (this.status != OrderStatus.CREATED
                 && this.status != OrderStatus.PAYMENT_FAILED) {
-            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS, "현재 주문 상태 = " + this.status);
         }
 
         this.status = OrderStatus.EXPIRED;
@@ -127,7 +127,7 @@ public class Order {
 
     private void validateCurrentStatus(OrderStatus expected) {
         if (this.status != expected) {
-            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS, "현재 주문 상태 = " + this.status);
         }
     }
 
@@ -149,7 +149,7 @@ public class Order {
     public void markRefunded() {
         if (this.status != OrderStatus.CANCEL_REQUESTED
                 && this.status != OrderStatus.CANCEL_FAILED) {
-            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS, "현재 주문 상태 = " + this.status);
         }
 
         this.status = OrderStatus.REFUNDED;

@@ -95,7 +95,7 @@ public class OrderCancellationService {
 
         if (order.getStatus() != OrderStatus.CANCEL_REQUESTED
                 && order.getStatus() != OrderStatus.CANCEL_FAILED) {
-            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS, "현재 주문 상태 = " + order.getStatus());
         }
 
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
@@ -131,7 +131,7 @@ public class OrderCancellationService {
         }
 
         if (order.getStatus() != OrderStatus.CANCEL_REQUESTED) {
-            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS, "현재 주문 상태 = " + order.getStatus());
         }
 
         order.markCancelFailed(reason);
