@@ -1,6 +1,5 @@
 package com.limitedgoods.limitedgoods.common.config;
 
-import com.limitedgoods.limitedgoods.order.listener.ReservationExpiredListener;
 import com.limitedgoods.limitedgoods.queue.listener.AdmissionTokenExpiredListener;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -14,17 +13,12 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 public class RedisExpirationConfig {
 
     private final RedisConnectionFactory connectionFactory;
-    private final ReservationExpiredListener reservationExpiredListener;
     private final AdmissionTokenExpiredListener admissionTokenExpiredListener;
 
     @Bean
     public RedisMessageListenerContainer redisMessageListenerContainer() {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
-        container.addMessageListener(
-                reservationExpiredListener,
-                new PatternTopic("__keyevent@0__:expired")
-        );
         container.addMessageListener(
                 admissionTokenExpiredListener,
                 new PatternTopic("__keyevent@0__:expired")
