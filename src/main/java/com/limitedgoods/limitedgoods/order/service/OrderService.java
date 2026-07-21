@@ -109,9 +109,15 @@ public class OrderService {
 
             productIds.add(product.getId());
 
-            long lineTotalPrice = product.getPrice() * item.getQuantity();
+            long lineTotalPrice = Math.multiplyExact(
+                    (long) product.getPrice(),
+                    item.getQuantity()
+            );
 
-            totalPrice += lineTotalPrice;
+            totalPrice = Math.addExact(
+                    totalPrice,
+                    lineTotalPrice
+            );
 
             orderItems.add(OrderItem.builder()
                     .product(product)

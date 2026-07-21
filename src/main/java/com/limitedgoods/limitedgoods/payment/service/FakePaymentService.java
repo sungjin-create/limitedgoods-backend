@@ -11,7 +11,7 @@ import java.util.UUID;
 public class FakePaymentService implements PaymentService {
 
     @Override
-    public PaymentResult pay(Long orderId, int amount, PaymentRequestDto request) {
+    public PaymentResult pay(Long orderId, Long amount, PaymentRequestDto request) {
         if(request.isForceFail()){
             throw new PaymentFailedException("결제 승인 실패");
         }
@@ -22,7 +22,7 @@ public class FakePaymentService implements PaymentService {
     }
 
     @Override
-    public void cancel(Long orderId, int amount) {
+    public void cancel(Long orderId, Long amount) {
         if (orderId % 5 == 0) {
             throw new PaymentFailedException("PG 환불 실패");
         }

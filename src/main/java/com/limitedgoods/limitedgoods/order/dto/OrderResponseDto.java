@@ -15,7 +15,7 @@ public class OrderResponseDto {
 
     private Long userId;
 
-    private int totalPrice;
+    private long totalPrice;
 
     private String status;
 

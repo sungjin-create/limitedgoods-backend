@@ -70,6 +70,11 @@ public enum ErrorCode {
             "PRODUCT_009",
             "재고를 변경할 수 있는 상품상태가 아닙니다."
     ),
+    INVALID_PRODUCT_SALE_STATUS(
+            HttpStatus.BAD_REQUEST,
+            "PRODUCT_0010",
+            "상품을 구입할 수 없는 상태입니다."
+    ),
 
     ORDER_NOT_FOUND(
             HttpStatus.NOT_FOUND,
@@ -100,6 +105,26 @@ public enum ErrorCode {
             HttpStatus.TOO_MANY_REQUESTS,
             "ORDER_006",
             "주문 요청이 너무 많습니다. 잠시 후 다시 시도해주세요."
+    ),
+    LIMITED_PRODUCT_SINGLE_ORDER_ONLY(
+            HttpStatus.TOO_MANY_REQUESTS,
+            "ORDER_007",
+            "한정판 상품은 단일 주문만 가능합니다."
+    ),
+    MAX_PURCHASE_QUANTITY_EXCEEDED(
+            HttpStatus.TOO_MANY_REQUESTS,
+            "ORDER_008",
+            "한번에 주문 가능한 갯수를 초과했습니다."
+    ),
+    IDEMPOTENCY_KEY_REUSED(
+            HttpStatus.CONFLICT,
+            "ORDER_009",
+            "동일한 checkoutToken이 다른 주문 요청에 사용되었습니다."
+    ),
+    DUPLICATE_ORDER_PRODUCT(
+            HttpStatus.BAD_REQUEST,
+            "ORDER_010",
+            "동일한 상품을 주문 항목에 중복으로 포함할 수 없습니다."
     ),
 
     PAYMENT_FAILED(

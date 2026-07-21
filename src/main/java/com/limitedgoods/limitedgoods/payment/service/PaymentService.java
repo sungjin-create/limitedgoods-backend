@@ -4,7 +4,7 @@ import com.limitedgoods.limitedgoods.payment.dto.PaymentRequestDto;
 import com.limitedgoods.limitedgoods.payment.dto.PaymentResult;
 
 public interface PaymentService {
-    PaymentResult pay(Long orderId, int amount, PaymentRequestDto request);
+    PaymentResult pay(Long orderId, Long amount, PaymentRequestDto request);
 
-    void cancel(Long orderId, int amount);
+    void cancel(Long orderId, Long amount);
 }

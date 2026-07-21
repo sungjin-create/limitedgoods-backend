@@ -4,7 +4,7 @@ import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 
 public record OrderPaymentInfo(
         Long orderId,
-        int totalPrice,
+        long totalPrice,
         OrderStatus orderStatus
 ) {
 }
