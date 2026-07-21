@@ -3,26 +3,25 @@ package com.limitedgoods.limitedgoods.order.application.create;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.order.application.mapper.OrderResponseMapper;
-import com.limitedgoods.limitedgoods.order.dto.request.OrderItemsListDto;
+import com.limitedgoods.limitedgoods.order.dto.request.OrderItemRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import com.limitedgoods.limitedgoods.order.repository.OrderItemRepository;
 import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
-import com.limitedgoods.limitedgoods.product.entity.Product;
-import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import com.limitedgoods.limitedgoods.product.service.ProductSoldOutCacheService;
 import com.limitedgoods.limitedgoods.user.entity.User;
 import com.limitedgoods.limitedgoods.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 
 @Service
@@ -41,7 +40,7 @@ public class OrderCreateTransactionService {
     @Transactional
     public OrderResponseDto createOrder(
             Long userId,
-            List<OrderItemsListDto> items,
+            List<OrderItemRequestDto> items,
             long reservationSeconds,
             String checkoutToken,
             String requestFingerprint

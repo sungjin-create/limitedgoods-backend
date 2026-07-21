@@ -1,25 +1,22 @@
 package com.limitedgoods.limitedgoods.order.dto.response;
 
 import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-@Getter
-@Setter
 @Builder
-public class OrderResponseDto {
+public record OrderResponseDto (
+        Long id,
 
-    private Long id;
+        Long userId,
 
-    private Long userId;
+        long totalPrice,
 
-    private long totalPrice;
+        String status,
 
-    private String status;
+        LocalDateTime createdAt,
 
-    private LocalDateTime createdAt;
+        LocalDateTime expiresAt
+){
 
-    private LocalDateTime expiresAt;
 }

@@ -8,22 +8,20 @@ import lombok.*;
 
 import java.util.List;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
-public class OrderRequestDto {
+public record OrderRequestDto (
 
     @NotBlank
     @Size(max = 255)
-    private String checkoutToken;
+    String checkoutToken,
 
     @NotEmpty
     @Valid
     @Size(max = 50)
-    private List<OrderItemsListDto> items;
+    List<OrderItemRequestDto> items,
 
     @Size(max = 100)
-    private String admissionToken;
+    String admissionToken
+) {
+
 }

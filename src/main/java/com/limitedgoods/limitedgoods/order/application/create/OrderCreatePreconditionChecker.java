@@ -2,7 +2,7 @@ package com.limitedgoods.limitedgoods.order.application.create;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
-import com.limitedgoods.limitedgoods.order.dto.request.OrderItemsListDto;
+import com.limitedgoods.limitedgoods.order.dto.request.OrderItemRequestDto;
 import com.limitedgoods.limitedgoods.order.policy.OrderProductValidationResult;
 import com.limitedgoods.limitedgoods.order.dto.request.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.policy.ProductOrderPolicy;
@@ -27,24 +27,24 @@ public class OrderCreatePreconditionChecker {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        if (request.getCheckoutToken() == null || request.getCheckoutToken().isBlank()) {
+        if (request.checkoutToken() == null || request.checkoutToken().isBlank()) {
             throw new BusinessException( ErrorCode.HAS_NO_CHECKOUT_TOKEN);
         }
 
-        if (request.getItems() == null || request.getItems().isEmpty()) {
+        if (request.items() == null || request.items().isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
         Set<Long> productIds = new HashSet<>();
 
-        for (OrderItemsListDto item : request.getItems()) {
+        for (OrderItemRequestDto item : request.items()) {
             if (item == null
-                    || item.getProductId() == null
-                    || item.getQuantity() <= 0) {
+                    || item.productId() == null
+                    || item.quantity() <= 0) {
                 throw new BusinessException(ErrorCode.INVALID_INPUT);
             }
 
-            if (!productIds.add(item.getProductId())) {
+            if (!productIds.add(item.productId())) {
                 throw new BusinessException(
                         ErrorCode.DUPLICATE_ORDER_PRODUCT
                 );
@@ -63,7 +63,7 @@ public class OrderCreatePreconditionChecker {
         validateSoldOutCache(request);
 
         return productOrderPolicy.validate(
-                request.getItems()
+                request.items()
         );
     }
 
@@ -71,10 +71,10 @@ public class OrderCreatePreconditionChecker {
             Long userId,
             OrderRequestDto request
     ) {
-        for (OrderItemsListDto item : request.getItems()) {
+        for (OrderItemRequestDto item : request.items()) {
             boolean allowed = orderRateLimiter.allow(
                     userId,
-                    item.getProductId()
+                    item.productId()
             );
 
             if (!allowed) {
@@ -88,9 +88,9 @@ public class OrderCreatePreconditionChecker {
     private void validateSoldOutCache(
             OrderRequestDto request
     ) {
-        for (OrderItemsListDto item : request.getItems()) {
+        for (OrderItemRequestDto item : request.items()) {
             boolean soldOut = productSoldOutCacheService.isSoldOut(
-                    item.getProductId()
+                    item.productId()
             );
 
             if (soldOut) {

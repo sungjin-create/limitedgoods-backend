@@ -2,7 +2,7 @@ package com.limitedgoods.limitedgoods.order.application.create;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
-import com.limitedgoods.limitedgoods.order.dto.request.OrderItemsListDto;
+import com.limitedgoods.limitedgoods.order.dto.request.OrderItemRequestDto;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
@@ -25,32 +25,32 @@ public class OrderStockReservationService {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public OrderStockReservationResult reserve(
-            List<OrderItemsListDto> items
+            List<OrderItemRequestDto> items
     ) {
         long totalPrice = 0L;
 
         List<OrderItem> orderItems = new ArrayList<>();
         Set<Long> productIds = new HashSet<>();
 
-        List<OrderItemsListDto> sortedItems = items.stream()
+        List<OrderItemRequestDto> sortedItems = items.stream()
                 .sorted(
                         Comparator.comparing(
-                                OrderItemsListDto::getProductId
+                                OrderItemRequestDto::productId
                         )
                 )
                 .toList();
 
-        for (OrderItemsListDto item : sortedItems) {
-            Product product = getProduct(item.getProductId());
+        for (OrderItemRequestDto item : sortedItems) {
+            Product product = getProduct(item.productId());
 
             decreaseStock(
                     product.getId(),
-                    item.getQuantity()
+                    item.quantity()
             );
 
             long lineTotalPrice = calculateLineTotalPrice(
                     product.getPrice(),
-                    item.getQuantity()
+                    item.quantity()
             );
 
             totalPrice = Math.addExact(
@@ -63,7 +63,7 @@ public class OrderStockReservationService {
             orderItems.add(
                     createOrderItem(
                             product,
-                            item.getQuantity(),
+                            item.quantity(),
                             lineTotalPrice
                     )
             );

@@ -28,8 +28,8 @@ public class CreateOrderUseCase {
     ) {
         preconditionChecker.validateRequest(request);
 
-        String checkoutToken = request.getCheckoutToken();
-        String requestFingerprint = fingerprintGenerator.generate(request.getItems());
+        String checkoutToken = request.checkoutToken();
+        String requestFingerprint = fingerprintGenerator.generate(request.items());
 
         OrderResponseDto existing =
                 orderCreateTransactionService.findIdempotentOrder(
@@ -50,7 +50,7 @@ public class CreateOrderUseCase {
 
         Optional<OrderAdmissionClaim> admissionClaim =
                 admissionCoordinator.claimIfRequired(
-                        request.getAdmissionToken(),
+                        request.admissionToken(),
                         userId,
                         validationResult.admissionProductId(),
                         checkoutToken,
@@ -61,7 +61,7 @@ public class CreateOrderUseCase {
             OrderResponseDto order =
                     orderCreateTransactionService.createOrder(
                             userId,
-                            request.getItems(),
+                            request.items(),
                             ORDER_EXPIRED_SECONDS,
                             checkoutToken,
                             requestFingerprint
