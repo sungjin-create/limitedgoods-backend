@@ -64,30 +64,4 @@ public class OrderService {
                 );
     }
 
-    private OrderResponseDto toResponse(Order order) {
-        return OrderResponseDto.builder()
-                .id(order.getId())
-                .userId(order.getUser().getId())
-                .totalPrice(order.getTotalPrice())
-                .status(order.getStatus().name())
-                .createdAt(order.getCreatedAt())
-                .build();
-    }
-
-
-
-    private void updateProductSoldCount(Long userId, Long orderId) {
-        List<OrderItem> orderItemList = orderRepository.findOrderItemsByOrder(orderId, userId);
-
-        for(OrderItem orderItem : orderItemList) {
-            productRepository.increaseSoldCount(
-                    orderItem.getProduct().getId(),
-                    orderItem.getQuantity());
-        }
-    }
-
-
-
-
-
 }

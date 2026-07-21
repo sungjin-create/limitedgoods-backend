@@ -35,88 +35,55 @@ public class OrderCreateTransactionService {
     private final OrderResponseMapper orderResponseMapper;
     private final ProductSoldOutCacheService productSoldOutCacheService;
     private final OrderItemRepository orderItemRepository;
+    private final OrderStockReservationService stockReservationService;
 
 
     @Transactional
-    public OrderResponseDto createOrder(Long userId,
-                                        List<OrderItemsListDto> items,
-                                        long reservationSeconds,
-                                        String checkoutToken,
-                                        String requestFingerprint) {
-        User user = userRepository.findByIdForUpdate(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    public OrderResponseDto createOrder(
+            Long userId,
+            List<OrderItemsListDto> items,
+            long reservationSeconds,
+            String checkoutToken,
+            String requestFingerprint
+    ) {
+        User user = getUserForUpdate(userId);
 
-        Optional<Order> existing = findByCheckoutToken(userId, checkoutToken);
+        Order existingOrder =
+                findExistingOrder(
+                        userId,
+                        checkoutToken
+                );
 
-        if (existing.isPresent()) {
-            Order order = existing.get();
+        if (existingOrder != null) {
+            validateRequestFingerprint(
+                    existingOrder,
+                    requestFingerprint
+            );
 
-            validateRequestFingerprint(order, requestFingerprint);
-
-            return orderResponseMapper.toResponse(order);
+            return orderResponseMapper.toResponse(existingOrder);
         }
 
-
-        long totalPrice = 0;
-        List<OrderItem> orderItems = new ArrayList<>();
-
-        List<OrderItemsListDto> sortedItems = items.stream()
-                .sorted(Comparator.comparing(OrderItemsListDto::getProductId))
-                .toList();
-
-        Set<Long> productIds = new HashSet<>();
-
-        //기존 주문 취소 및 기존 주문의 재고 복구
         cancelActivePendingOrder(userId);
 
-        for (OrderItemsListDto item : sortedItems) {
-            Product product =productRepository.findById(item.getProductId())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
+        OrderStockReservationResult reservation =
+                stockReservationService.reserve(items);
 
-            int updated = productRepository.decreaseStockIfPurchasable(
-                    product.getId(),
-                    item.getQuantity(),
-                    ProductStatus.ACTIVE,
-                    ProductStatus.SCHEDULED
-            );
+        registerSoldOutCacheAfterCommit(
+                reservation.productIds()
+        );
 
-            if (updated == 0) {
-                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
-            }
+        Order savedOrder = saveOrder(
+                user,
+                checkoutToken,
+                requestFingerprint,
+                reservationSeconds,
+                reservation.totalPrice()
+        );
 
-            productIds.add(product.getId());
-
-            long lineTotalPrice = Math.multiplyExact(
-                    (long) product.getPrice(),
-                    item.getQuantity()
-            );
-
-            totalPrice = Math.addExact(
-                    totalPrice,
-                    lineTotalPrice
-            );
-
-            orderItems.add(OrderItem.builder()
-                    .product(product)
-                    .quantity(item.getQuantity())
-                    .price(product.getPrice())
-                    .lineTotalPrice(lineTotalPrice)
-                    .build());
-        }
-
-        List<Long> soldOutProductIds =
-                productRepository.findSoldOutProductIds(productIds);
-        soldOutProductIds.forEach(productSoldOutCacheService::markSoldOutAfterCommit);
-
-        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(reservationSeconds);
-
-        Order order = Order.create(user, totalPrice, expiresAt, checkoutToken, requestFingerprint);
-        Order savedOrder = orderRepository.save(order);
-
-        for (OrderItem orderItem : orderItems) {
-            orderItem.setOrder(savedOrder);
-        }
-        orderItemRepository.saveAll(orderItems);
+        saveOrderItems(
+                savedOrder,
+                reservation.orderItems()
+        );
 
         return orderResponseMapper.toResponse(savedOrder);
     }
@@ -143,6 +110,67 @@ public class OrderCreateTransactionService {
         }
 
         return null;
+    }
+
+    private User getUserForUpdate(Long userId) {
+        return userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private Order findExistingOrder(
+            Long userId,
+            String checkoutToken
+    ) {
+        return orderRepository.
+                findByUserIdAndCheckoutToken(
+                    userId,
+                    checkoutToken
+                )
+                .orElse(null);
+    }
+
+    private void registerSoldOutCacheAfterCommit(
+            Set<Long> productIds
+    ) {
+        List<Long> soldOutProductIds =
+                productRepository.findSoldOutProductIds(productIds);
+
+        soldOutProductIds.forEach(
+                productSoldOutCacheService::markSoldOutAfterCommit
+        );
+    }
+
+    private Order saveOrder(
+            User user,
+            String checkoutToken,
+            String requestFingerprint,
+            long reservationSeconds,
+            long totalPrice
+    ) {
+        LocalDateTime expiresAt =
+                LocalDateTime.now()
+                        .plusSeconds(reservationSeconds);
+
+        Order order = Order.create(
+                user,
+                totalPrice,
+                expiresAt,
+                checkoutToken,
+                requestFingerprint
+        );
+
+        return orderRepository.save(order);
+    }
+
+    private void saveOrderItems(
+            Order order,
+            List<OrderItem> orderItems
+    ) {
+        for (OrderItem orderItem : orderItems) {
+            orderItem.setOrder(order);
+        }
+
+        orderItemRepository.saveAll(orderItems);
     }
 
     private void cancelActivePendingOrder(Long userId) {

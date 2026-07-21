@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
@@ -16,10 +17,15 @@ public class OrderRequestFingerprintGenerator {
     private static final String VERSION = "v1";
 
     public String generate(List<OrderItemsListDto> items) {
-        String canonicalRequest = items.stream()
-                .sorted(Comparator.comparing(OrderItemsListDto::getProductId))
-                .map(item -> item.getProductId() + ":" + item.getQuantity())
-                .reduce(VERSION, (result, item) -> result + "|" + item);
+        List<OrderItemsListDto> sortedItems = new ArrayList<>(items);
+
+        sortedItems.sort(Comparator.comparing(OrderItemsListDto::getProductId));
+
+        String canonicalRequest = VERSION;
+
+        for (OrderItemsListDto item : sortedItems) {
+            canonicalRequest += "|" + item.getProductId() + ":" + item.getQuantity();
+        }
 
         return sha256(canonicalRequest);
     }
