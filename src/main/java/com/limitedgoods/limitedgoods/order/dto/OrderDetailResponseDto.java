@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 public class OrderDetailResponseDto {
 
     private Long orderId;
-    private int totalPrice;
+    private long totalPrice;
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime expiresAt;
@@ -22,7 +22,7 @@ public class OrderDetailResponseDto {
 
     public OrderDetailResponseDto(
             Long orderId,
-            int totalPrice,
+            long totalPrice,
             OrderStatus status,
             LocalDateTime createdAt,
             LocalDateTime expiresAt,
