@@ -47,29 +47,19 @@ public class OrderCreateTransactionService {
     ) {
         User user = getUserForUpdate(userId);
 
-        Order existingOrder =
-                findExistingOrder(
-                        userId,
-                        checkoutToken
-                );
+        Order existingOrder = findExistingOrder(userId, checkoutToken);
 
         if (existingOrder != null) {
-            validateRequestFingerprint(
-                    existingOrder,
-                    requestFingerprint
-            );
+            validateRequestFingerprint(existingOrder, requestFingerprint);
 
             return orderResponseMapper.toResponse(existingOrder);
         }
 
         cancelActivePendingOrder(userId);
 
-        OrderStockReservationResult reservation =
-                stockReservationService.reserve(items);
+        OrderStockReservationResult reservation = stockReservationService.reserve(items);
 
-        registerSoldOutCacheAfterCommit(
-                reservation.productIds()
-        );
+        registerSoldOutCacheAfterCommit(reservation.productIds());
 
         Order savedOrder = saveOrder(
                 user,
@@ -79,10 +69,7 @@ public class OrderCreateTransactionService {
                 reservation.totalPrice()
         );
 
-        saveOrderItems(
-                savedOrder,
-                reservation.orderItems()
-        );
+        saveOrderItems(savedOrder, reservation.orderItems());
 
         return orderResponseMapper.toResponse(savedOrder);
     }
@@ -93,17 +80,13 @@ public class OrderCreateTransactionService {
             String checkoutToken,
             String requestFingerprint
     ) {
-        Optional<Order> optionalOrder =
-                findByCheckoutToken(userId, checkoutToken);
+        Optional<Order> optionalOrder = findByCheckoutToken(userId, checkoutToken);
 
         if (optionalOrder.isPresent()) {
 
             Order order = optionalOrder.get();
 
-            validateRequestFingerprint(
-                    order,
-                    requestFingerprint
-            );
+            validateRequestFingerprint(order, requestFingerprint);
 
             return orderResponseMapper.toResponse(order);
         }
@@ -120,23 +103,14 @@ public class OrderCreateTransactionService {
             Long userId,
             String checkoutToken
     ) {
-        return orderRepository.
-                findByUserIdAndCheckoutToken(
-                    userId,
-                    checkoutToken
-                )
+        return orderRepository.findByUserIdAndCheckoutToken(userId,checkoutToken)
                 .orElse(null);
     }
 
-    private void registerSoldOutCacheAfterCommit(
-            Set<Long> productIds
-    ) {
-        List<Long> soldOutProductIds =
-                productRepository.findSoldOutProductIds(productIds);
+    private void registerSoldOutCacheAfterCommit(Set<Long> productIds) {
+        List<Long> soldOutProductIds = productRepository.findSoldOutProductIds(productIds);
 
-        soldOutProductIds.forEach(
-                productSoldOutCacheService::markSoldOutAfterCommit
-        );
+        soldOutProductIds.forEach( productSoldOutCacheService::markSoldOutAfterCommit);
     }
 
     private Order saveOrder(
@@ -146,9 +120,7 @@ public class OrderCreateTransactionService {
             long reservationSeconds,
             long totalPrice
     ) {
-        LocalDateTime expiresAt =
-                LocalDateTime.now()
-                        .plusSeconds(reservationSeconds);
+        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(reservationSeconds);
 
         Order order = Order.create(
                 user,
@@ -204,8 +176,7 @@ public class OrderCreateTransactionService {
             Order order,
             String requestFingerprint
     ) {
-        if (!order.getRequestFingerprint()
-                .equals(requestFingerprint)) {
+        if (!order.getRequestFingerprint().equals(requestFingerprint)) {
             throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED);
         }
     }

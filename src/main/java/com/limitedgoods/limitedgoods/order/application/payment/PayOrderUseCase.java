@@ -52,9 +52,7 @@ public class PayOrderUseCase {
                 );
 
         if (!locked) {
-            throw new BusinessException(
-                    ErrorCode.DUPLICATE_PAYMENT_REQUEST
-            );
+            throw new BusinessException(ErrorCode.DUPLICATE_PAYMENT_REQUEST);
         }
 
         try {
@@ -79,24 +77,15 @@ public class PayOrderUseCase {
             PaymentRequestDto request,
             String idempotencyKey
     ) {
-        OrderPaymentInfo paymentInfo =
-                orderPaymentService.getPaymentInfo(
-                        userId,
-                        orderId
-                );
+        OrderPaymentInfo paymentInfo = orderPaymentService.getPaymentInfo(userId, orderId);
 
         /*
          * PG 승인은 이미 성공했다.
          * 외부 PG를 다시 호출하지 않고 내부 확정만 수행한다.
          */
-        if (paymentInfo.orderStatus()
-                == OrderStatus.PAYMENT_APPROVED) {
+        if (paymentInfo.orderStatus() == OrderStatus.PAYMENT_APPROVED) {
 
-            OrderResponseDto response =
-                    paymentFinalizer.finalizePayment(
-                            userId,
-                            orderId
-                    );
+            OrderResponseDto response = paymentFinalizer.finalizePayment(userId, orderId);
 
             return completeSuccess(
                     userId,
@@ -110,11 +99,7 @@ public class PayOrderUseCase {
          * 이미 모든 결제 처리가 완료됐다.
          */
         if (paymentInfo.orderStatus() == OrderStatus.PAID) {
-            OrderResponseDto response =
-                    paymentFinalizer.finalizePayment(
-                            userId,
-                            orderId
-                    );
+            OrderResponseDto response = paymentFinalizer.finalizePayment(userId, orderId);
 
             return completeSuccess(
                     userId,
@@ -124,10 +109,7 @@ public class PayOrderUseCase {
             );
         }
 
-        paymentInfo = orderPaymentService.startPayment(
-                userId,
-                orderId
-        );
+        paymentInfo = orderPaymentService.startPayment(userId, orderId);
 
         requestPgPayment(
                 userId,
@@ -136,16 +118,9 @@ public class PayOrderUseCase {
                 request
         );
 
-        orderPaymentService.markPaymentApproved(
-                userId,
-                orderId
-        );
+        orderPaymentService.markPaymentApproved(userId, orderId);
 
-        OrderResponseDto response =
-                paymentFinalizer.finalizePayment(
-                        userId,
-                        orderId
-                );
+        OrderResponseDto response = paymentFinalizer.finalizePayment(userId, orderId);
 
         return completeSuccess(
                 userId,
@@ -174,9 +149,7 @@ public class PayOrderUseCase {
                     exception.getMessage()
             );
 
-            throw new BusinessException(
-                    ErrorCode.PAYMENT_FAILED
-            );
+            throw new BusinessException(ErrorCode.PAYMENT_FAILED);
         }
     }
 

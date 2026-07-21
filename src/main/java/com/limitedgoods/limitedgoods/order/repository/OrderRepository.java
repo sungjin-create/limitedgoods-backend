@@ -4,6 +4,7 @@ import com.limitedgoods.limitedgoods.backoffice.dashboard.dto.BackofficeRecentOr
 import com.limitedgoods.limitedgoods.backoffice.order.dto.BackofficeMonitoringOrderFlatResponse;
 import com.limitedgoods.limitedgoods.backoffice.order.dto.BackofficeMonitoringSummaryResponse;
 import com.limitedgoods.limitedgoods.order.dto.response.OrderDetailResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderSummaryResponseDto;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
@@ -35,6 +36,17 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         """)
     Optional<Order> findByIdForUpdate(@Param("id") Long id, @Param("userId") Long userId);
 
+    @Query("""
+    select o
+    from Order o
+    where o.id = :orderId
+      and o.user.id = :userId
+    """)
+    Optional<Order> findByIdAndUserId(
+            @Param("orderId") Long orderId,
+            @Param("userId") Long userId
+    );
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         update Order o
@@ -51,24 +63,18 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     );
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.order.dto.response.OrderDetailResponseDto(
+    select new com.limitedgoods.limitedgoods.order.dto.response.OrderSummaryResponseDto(
         o.id,
         o.totalPrice,
         o.status,
         o.createdAt,
-        o.expiresAt,
-        p.id,
-        p.name,
-        oi.quantity,
-        oi.price
+        o.expiresAt
     )
-    from OrderItem oi
-    join oi.order o
-    join oi.product p
+    from Order o
     where o.user.id = :userId
-    order by o.createdAt desc
+    order by o.createdAt desc, o.id desc
     """)
-    List<OrderDetailResponseDto> findMyOrderDetails(
+    List<OrderSummaryResponseDto> findMyOrderSummaries(
             @Param("userId") Long userId
     );
 

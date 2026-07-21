@@ -62,9 +62,7 @@ public class OrderCreatePreconditionChecker {
         validateRateLimit(userId, request);
         validateSoldOutCache(request);
 
-        return productOrderPolicy.validate(
-                request.items()
-        );
+        return productOrderPolicy.validate(request.items());
     }
 
     private void validateRateLimit(
@@ -72,31 +70,21 @@ public class OrderCreatePreconditionChecker {
             OrderRequestDto request
     ) {
         for (OrderItemRequestDto item : request.items()) {
-            boolean allowed = orderRateLimiter.allow(
-                    userId,
-                    item.productId()
-            );
+            boolean allowed = orderRateLimiter.allow(userId, item.productId());
 
             if (!allowed) {
-                throw new BusinessException(
-                        ErrorCode.TOO_MANY_ORDER_REQUESTS
-                );
+                throw new BusinessException(ErrorCode.TOO_MANY_ORDER_REQUESTS);
             }
         }
     }
 
-    private void validateSoldOutCache(
-            OrderRequestDto request
-    ) {
+    private void validateSoldOutCache(OrderRequestDto request) {
         for (OrderItemRequestDto item : request.items()) {
-            boolean soldOut = productSoldOutCacheService.isSoldOut(
-                    item.productId()
-            );
+            boolean soldOut =
+                    productSoldOutCacheService.isSoldOut(item.productId());
 
             if (soldOut) {
-                throw new BusinessException(
-                        ErrorCode.INSUFFICIENT_STOCK
-                );
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
             }
         }
     }

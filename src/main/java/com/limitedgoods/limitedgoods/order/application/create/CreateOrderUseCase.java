@@ -43,10 +43,7 @@ public class CreateOrderUseCase {
         }
 
         OrderProductValidationResult validationResult =
-                preconditionChecker.checkNewOrder(
-                        userId,
-                        request
-                );
+                preconditionChecker.checkNewOrder(userId, request);
 
         Optional<OrderAdmissionClaim> admissionClaim =
                 admissionCoordinator.claimIfRequired(
@@ -72,17 +69,12 @@ public class CreateOrderUseCase {
             return order;
 
         } catch (BusinessException exception) {
-            admissionCoordinator.releaseAfterBusinessFailure(
-                    admissionClaim
-            );
+            admissionCoordinator.releaseAfterBusinessFailure(admissionClaim);
 
             throw exception;
 
         } catch (RuntimeException exception) {
-            admissionCoordinator.retainAfterUnknownFailure(
-                    admissionClaim,
-                    exception
-            );
+            admissionCoordinator.retainAfterUnknownFailure(admissionClaim, exception);
 
             throw exception;
         }

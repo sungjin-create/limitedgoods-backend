@@ -30,15 +30,10 @@ public class OrderAdmissionCoordinator {
         }
 
         if (admissionToken == null || admissionToken.isBlank()) {
-            throw new BusinessException(
-                    ErrorCode.ADMISSION_TOKEN_REQUIRED
-            );
+            throw new BusinessException(ErrorCode.ADMISSION_TOKEN_REQUIRED);
         }
 
-        String claimId = createClaimId(
-                checkoutToken,
-                requestFingerprint
-        );
+        String claimId = createClaimId(checkoutToken, requestFingerprint);
 
         boolean claimed = admissionTokenService.claim(
                 admissionToken,
@@ -48,9 +43,7 @@ public class OrderAdmissionCoordinator {
         );
 
         if (!claimed) {
-            throw new BusinessException(
-                    ErrorCode.ADMISSION_TOKEN_INVALID
-            );
+            throw new BusinessException(ErrorCode.ADMISSION_TOKEN_INVALID);
         }
 
         return Optional.of(
@@ -63,15 +56,11 @@ public class OrderAdmissionCoordinator {
         );
     }
 
-    public void releaseAfterBusinessFailure(
-            Optional<OrderAdmissionClaim> claim
-    ) {
+    public void releaseAfterBusinessFailure(Optional<OrderAdmissionClaim> claim) {
         claim.ifPresent(this::releaseBestEffort);
     }
 
-    public void completeAfterOrderCreated(
-            Optional<OrderAdmissionClaim> claim
-    ) {
+    public void completeAfterOrderCreated(Optional<OrderAdmissionClaim> claim) {
         claim.ifPresent(this::completeBestEffort);
     }
 
@@ -103,9 +92,7 @@ public class OrderAdmissionCoordinator {
                 + requestFingerprint;
     }
 
-    private void releaseBestEffort(
-            OrderAdmissionClaim claim
-    ) {
+    private void releaseBestEffort(OrderAdmissionClaim claim) {
         try {
             boolean released =
                     admissionTokenService.releaseClaim(
@@ -117,16 +104,14 @@ public class OrderAdmissionCoordinator {
 
             if (!released) {
                 log.warn(
-                        "[입장 토큰 선점 해제 실패] "
-                                + "userId={}, productId={}",
+                        "[입장 토큰 선점 해제 실패] userId={}, productId={}",
                         claim.userId(),
                         claim.productId()
                 );
             }
         } catch (Exception exception) {
             log.error(
-                    "[입장 토큰 선점 해제 오류] "
-                            + "userId={}, productId={}",
+                    "[입장 토큰 선점 해제 오류] userId={}, productId={}",
                     claim.userId(),
                     claim.productId(),
                     exception
@@ -134,18 +119,12 @@ public class OrderAdmissionCoordinator {
         }
     }
 
-    private void completeBestEffort(
-            OrderAdmissionClaim claim
-    ) {
+    private void completeBestEffort(OrderAdmissionClaim claim) {
         try {
-            queueService.removeFromQueue(
-                    claim.userId(),
-                    claim.productId()
-            );
+            queueService.removeFromQueue(claim.userId(),claim.productId());
         } catch (Exception exception) {
             log.error(
-                    "[주문 성공 후 대기열 제거 실패] "
-                            + "userId={}, productId={}",
+                    "[주문 성공 후 대기열 제거 실패] userId={}, productId={}",
                     claim.userId(),
                     claim.productId(),
                     exception
@@ -167,16 +146,14 @@ public class OrderAdmissionCoordinator {
 
             if (!consumed) {
                 log.debug(
-                        "[입장 토큰 소비 확정 실패] "
-                                + "userId={}, productId={}",
+                        "[입장 토큰 소비 확정 실패] userId={}, productId={}",
                         claim.userId(),
                         claim.productId()
                 );
             }
         } catch (Exception exception) {
             log.error(
-                    "[입장 토큰 소비 후처리 실패] "
-                            + "userId={}, productId={}",
+                    "[입장 토큰 소비 후처리 실패] userId={}, productId={}",
                     claim.userId(),
                     claim.productId(),
                     exception

@@ -4,11 +4,11 @@ import com.limitedgoods.limitedgoods.common.response.ApiResponse;
 import com.limitedgoods.limitedgoods.order.application.create.CreateOrderUseCase;
 import com.limitedgoods.limitedgoods.order.application.payment.PayOrderUseCase;
 import com.limitedgoods.limitedgoods.order.application.query.OrderQueryService;
-import com.limitedgoods.limitedgoods.order.dto.response.OrderDetailResponseDto;
 import com.limitedgoods.limitedgoods.order.dto.request.OrderRequestDto;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderDetailResponseDto;
 import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderSummaryResponseDto;
 import com.limitedgoods.limitedgoods.payment.dto.PaymentRequestDto;
-import com.limitedgoods.limitedgoods.order.service.OrderService;
 import com.limitedgoods.limitedgoods.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +24,6 @@ import java.util.List;
 
 public class OrderController {
 
-    private final OrderService orderService;
     private final OrderQueryService orderQueryService;
     private final CreateOrderUseCase createOrderUseCase;
     private final PayOrderUseCase payOrderUseCase;
@@ -56,19 +55,19 @@ public class OrderController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<OrderDetailResponseDto>>> getMyOrders(
+    public ResponseEntity<ApiResponse<List<OrderSummaryResponseDto>>> findMyOrders(
             @AuthenticationPrincipal CustomUserDetails customUserDetails) {
-        List<OrderDetailResponseDto> response = orderQueryService.getMyOrders(
+        List<OrderSummaryResponseDto> response = orderQueryService.findMyOrders(
                 customUserDetails.getUserId()
         );
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/{orderId}")
-    public ResponseEntity<ApiResponse<OrderDetailResponseDto>> getOrderDetail(
+    public ResponseEntity<ApiResponse<OrderDetailResponseDto>> findOrderDetail(
             @PathVariable Long orderId,
             @AuthenticationPrincipal CustomUserDetails customUserDetails) {
-        OrderDetailResponseDto response = orderService.getOrderDetail(
+        OrderDetailResponseDto response = orderQueryService.findOrderDetail(
                 customUserDetails.getUserId(),
                 orderId
         );
