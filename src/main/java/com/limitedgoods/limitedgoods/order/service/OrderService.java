@@ -47,9 +47,6 @@ public class OrderService {
     private final OutboxEventService outboxEventService;
     private final SoldOutCacheService soldOutCacheService;
 
-    @PersistenceContext
-    EntityManager em;
-
     @Transactional(readOnly = true)
     public List<OrderDetailResponseDto> getMyOrders(Long userId) {
         return orderRepository.findMyOrderDetails(userId);
@@ -64,16 +61,32 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponseDto createOrder(Long userId, List<OrderItemsListDto> items, long reservationSeconds, String checkoutToken) {
-        User user = userRepository.findById(userId)
+    public OrderResponseDto createOrder(Long userId,
+                                        List<OrderItemsListDto> items,
+                                        long reservationSeconds,
+                                        String checkoutToken,
+                                        String requestFingerprint) {
+        User user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        int totalPrice = 0;
+        Optional<Order> existing = findByCheckoutToken(userId, checkoutToken);
+
+        if (existing.isPresent()) {
+            Order order = existing.get();
+
+            validateRequestFingerprint(order, requestFingerprint);
+
+            return toResponse(order);
+        }
+
+
+        long totalPrice = 0;
         List<OrderItem> orderItems = new ArrayList<>();
 
         List<OrderItemsListDto> sortedItems = items.stream()
                 .sorted(Comparator.comparing(OrderItemsListDto::getProductId))
                 .toList();
+
         Set<Long> productIds = new HashSet<>();
 
         //기존 주문 취소 및 기존 주문의 재고 복구
@@ -93,14 +106,18 @@ public class OrderService {
             if (updated == 0) {
                 throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
             }
+
             productIds.add(product.getId());
 
-            totalPrice += product.getPrice() * item.getQuantity();
+            long lineTotalPrice = product.getPrice() * item.getQuantity();
+
+            totalPrice += lineTotalPrice;
 
             orderItems.add(OrderItem.builder()
                     .product(product)
                     .quantity(item.getQuantity())
                     .price(product.getPrice())
+                    .lineTotalPrice(lineTotalPrice)
                     .build());
         }
 
@@ -110,7 +127,7 @@ public class OrderService {
 
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(reservationSeconds);
 
-        Order order = Order.create(user, totalPrice, expiresAt, checkoutToken);
+        Order order = Order.create(user, totalPrice, expiresAt, checkoutToken, requestFingerprint);
         Order savedOrder = orderRepository.save(order);
 
         for (OrderItem orderItem : orderItems) {
@@ -242,6 +259,36 @@ public class OrderService {
         order.markPaymentFailed(reason);
     }
 
+    @Transactional(readOnly = true)
+    public OrderResponseDto findIdempotentOrder(
+            Long userId,
+            String checkoutToken,
+            String requestFingerprint
+    ) {
+        return findByCheckoutToken(userId, checkoutToken)
+                .map(order -> {
+                    validateRequestFingerprint(
+                            order,
+                            requestFingerprint
+                    );
+
+                    return toResponse(order);
+                })
+                .orElse(null);
+    }
+
+    private void validateRequestFingerprint(
+            Order order,
+            String requestFingerprint
+    ) {
+        if (!order.getRequestFingerprint()
+                .equals(requestFingerprint)) {
+            throw new BusinessException(
+                    ErrorCode.IDEMPOTENCY_KEY_REUSED
+            );
+        }
+    }
+
     private Order getOrder(Long orderId, Long userId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
@@ -254,7 +301,7 @@ public class OrderService {
     }
 
     private void cancelActivePendingOrder(Long userId) {
-        List<Order> orderList = orderRepository.findOrderByUserIdAndStatusIn(userId,
+        List<Order> orderList = orderRepository.findActiveOrdersForUpdate(userId,
                 List.of(OrderStatus.CREATED,
                         OrderStatus.PAYMENT_FAILED,
                         OrderStatus.PAYMENT_PENDING,
@@ -427,17 +474,8 @@ public class OrderService {
         order.markCancelFailed(reason);
     }
 
-    @Transactional(readOnly = true)
-    public OrderResponseDto findActiveOrderByCheckoutToken(Long userId, String checkoutToken) {
-        return orderRepository.findOrderByUserIdAndCheckoutTokenAndStatusIn(
-                        userId,
-                        checkoutToken,
-                        List.of(OrderStatus.CREATED,
-                                OrderStatus.PAYMENT_FAILED,
-                                OrderStatus.PAYMENT_PENDING,
-                                OrderStatus.PAYMENT_APPROVED))
-                .map(this::toResponse)
-                .orElse(null);
+    private Optional<Order> findByCheckoutToken(Long userId, String checkoutToken) {
+        return orderRepository.findByUserIdAndCheckoutToken(userId,checkoutToken);
     }
 
 }

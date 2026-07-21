@@ -45,13 +45,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     update Product p
         set p.stock = p.stock - :quantity
     where p.id = :productId
+        and :quantity > 0
         and p.stock >= :quantity
         and (
-            p.status = :activeStatus
-            or (
-                p.status = :scheduledStatus
-                and p.saleStartAt <= current_timestamp
-            )
+            p.status = :activeStatus and 
+                (p.saleStartAt is null or p.saleStartAt <= current_timestamp)
+            or (p.status = :scheduledStatus and 
+                (p.saleStartAt is not null and p.saleStartAt <= current_timestamp))
        )
         and (
             p.saleEndAt is null

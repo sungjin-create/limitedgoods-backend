@@ -25,5 +25,5 @@ public class OrderItem {
 
     private int price;
 
-    private int lineTotalPrice;
+    private long lineTotalPrice;
 }

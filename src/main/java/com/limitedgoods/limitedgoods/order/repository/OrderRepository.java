@@ -72,9 +72,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             @Param("userId") Long userId
     );
 
-    Optional<Order> findOrderByUserIdAndCheckoutTokenAndStatusIn(Long userId, String checkoutToken, List<OrderStatus> statusList);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+    select o
+    from Order o
+    where o.user.id = :userId
+        and o.status in :statuses
+    order by o.id
+    """)
+    List<Order> findActiveOrdersForUpdate(Long userId, List<OrderStatus> orderStatusList);
 
-    List<Order> findOrderByUserIdAndStatusIn(Long userId, List<OrderStatus> orderStatusList);
 
     @Query("""
     select count(o)
@@ -251,4 +258,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     """)
     List<OrderItem> findOrderItemsByOrder(Long orderId, Long userId);
 
+    @Query("""
+    select o
+    from Order o
+    where o.user.id = :userId
+        and o.checkoutToken = :checkoutToken
+    """)
+    Optional<Order> findByUserIdAndCheckoutToken(
+            @Param("userId") Long userId,
+            @Param("checkoutToken") String checkoutToken
+    );
 }

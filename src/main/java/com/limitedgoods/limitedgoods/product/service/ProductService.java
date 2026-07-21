@@ -2,7 +2,6 @@ package com.limitedgoods.limitedgoods.product.service;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
-import com.limitedgoods.limitedgoods.order.dto.OrderItemsListDto;
 import com.limitedgoods.limitedgoods.product.dto.ProductResponseDTO;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
@@ -14,11 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static com.limitedgoods.limitedgoods.product.entity.ProductStatus.*;
 
@@ -37,37 +31,6 @@ public class ProductService {
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> searchProduct(Pageable pageable, String keyword) {
         return productRepository.searchByKeyword(pageable, keyword).map(this::toResponse);
-    }
-
-    @Transactional(readOnly = true)
-    public void validatePurchasableProducts(List<OrderItemsListDto> items) {
-        Set<Long> productIds = items.stream()
-                .map(OrderItemsListDto::getProductId)
-                .collect(Collectors.toSet());
-
-        List<Product> products =
-                productRepository.findAllById(productIds);
-
-        Map<Long, Product> productMap = products.stream()
-                .collect(Collectors.toMap(
-                        Product::getId,
-                        Function.identity()
-                ));
-
-        for (OrderItemsListDto item : items) {
-            Product product =
-                    productMap.get(item.getProductId());
-
-            if (product == null) {
-                throw new BusinessException(
-                        ErrorCode.INVALID_PRODUCT_ID
-                );
-            }
-
-            if(!product.isPurchasableAt(LocalDateTime.now())) {
-                throw new BusinessException(ErrorCode.INVALID_PRODUCT_SALE_STATUS);
-            }
-        }
     }
 
     private void validatePurchasable(Product product, LocalDateTime now) {

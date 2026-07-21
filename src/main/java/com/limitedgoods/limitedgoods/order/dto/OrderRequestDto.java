@@ -1,5 +1,8 @@
 package com.limitedgoods.limitedgoods.order.dto;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.*;
 
 import java.util.List;
@@ -11,8 +14,11 @@ import java.util.List;
 @Builder
 public class OrderRequestDto {
 
+    @NotBlank
     private String checkoutToken;
 
+    @NotEmpty
+    @Valid
     private List<OrderItemsListDto> items;
 
     private String admissionToken;

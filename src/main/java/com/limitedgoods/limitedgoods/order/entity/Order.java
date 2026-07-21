@@ -25,7 +25,7 @@ public class Order {
     @JoinColumn(name = "user_id")
     private User user;
 
-    private int totalPrice;
+    private long totalPrice;
 
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
@@ -43,7 +43,14 @@ public class Order {
 
     private String checkoutToken;
 
-    public static Order create(User user, int totalPrice, LocalDateTime expiresAt, String checkoutToken) {
+    @Column(nullable = false)
+    private String requestFingerprint;
+
+    public static Order create(User user,
+                               long totalPrice,
+                               LocalDateTime expiresAt,
+                               String checkoutToken,
+                               String requestFingerprint) {
         LocalDateTime now = LocalDateTime.now();
 
         return Order.builder()
@@ -54,6 +61,7 @@ public class Order {
                 .updatedAt(now)
                 .expiresAt(expiresAt)
                 .checkoutToken(checkoutToken)
+                .requestFingerprint(requestFingerprint)
                 .build();
     }
 
@@ -86,7 +94,6 @@ public class Order {
 
         this.status = OrderStatus.EXPIRED;
         this.updatedAt = LocalDateTime.now();
-        this.checkoutToken = null;
     }
 
     public void markPaid() {
@@ -110,14 +117,12 @@ public class Order {
         validateCurrentStatus(OrderStatus.PAID);
         this.status = OrderStatus.CANCELED;
         this.updatedAt = LocalDateTime.now();
-        this.checkoutToken = null;
     }
 
     public void markComplete() {
         validateCurrentStatus(OrderStatus.PAID);
         this.status = OrderStatus.COMPLETED;
         this.updatedAt = LocalDateTime.now();
-        this.checkoutToken = null;
     }
 
     private void validateCurrentStatus(OrderStatus expected) {
@@ -139,7 +144,6 @@ public class Order {
         this.cancelRequestedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
         this.cancelFailReason = null;
-        this.checkoutToken = null;
     }
 
     public void markRefunded() {
@@ -152,7 +156,6 @@ public class Order {
         this.refundedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
         this.cancelFailReason = null;
-        this.checkoutToken = null;
     }
 
     public void markCancelFailed(String reason) {
@@ -161,6 +164,5 @@ public class Order {
         this.status = OrderStatus.CANCEL_FAILED;
         this.cancelFailReason = reason;
         this.updatedAt = LocalDateTime.now();
-        this.checkoutToken = null;
     }
 }
