@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.payment.service;
+package com.limitedgoods.limitedgoods.order.application.payment.idempotency;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,7 +11,7 @@ import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
-public class PaymentIdempotencyService {
+public class OrderPaymentIdempotencyService {
 
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;

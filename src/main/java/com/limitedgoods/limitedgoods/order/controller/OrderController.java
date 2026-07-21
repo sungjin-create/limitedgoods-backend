@@ -2,12 +2,12 @@ package com.limitedgoods.limitedgoods.order.controller;
 
 import com.limitedgoods.limitedgoods.common.response.ApiResponse;
 import com.limitedgoods.limitedgoods.order.application.create.CreateOrderUseCase;
+import com.limitedgoods.limitedgoods.order.application.payment.PayOrderUseCase;
 import com.limitedgoods.limitedgoods.order.application.query.OrderQueryService;
 import com.limitedgoods.limitedgoods.order.dto.response.OrderDetailResponseDto;
 import com.limitedgoods.limitedgoods.order.dto.request.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
 import com.limitedgoods.limitedgoods.payment.dto.PaymentRequestDto;
-import com.limitedgoods.limitedgoods.order.application.OrderFacade;
 import com.limitedgoods.limitedgoods.order.service.OrderService;
 import com.limitedgoods.limitedgoods.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
@@ -27,6 +27,7 @@ public class OrderController {
     private final OrderService orderService;
     private final OrderQueryService orderQueryService;
     private final CreateOrderUseCase createOrderUseCase;
+    private final PayOrderUseCase payOrderUseCase;
 
     @PostMapping("/create")
     public ResponseEntity<ApiResponse<OrderResponseDto>> createOrder(
@@ -38,21 +39,21 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-//    @PostMapping("/{orderId}/pay")
-//    public ResponseEntity<ApiResponse<OrderResponseDto>> payOrder(
-//            @PathVariable Long orderId,
-//            @RequestBody PaymentRequestDto paymentRequestDto,
-//            @RequestHeader("Idempotency-Key") String idempotencyKey,
-//            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
-//        OrderResponseDto response = orderFacade.payOrder(
-//                customUserDetails.getUserId(),
-//                orderId,
-//                paymentRequestDto,
-//                idempotencyKey
-//        );
-//
-//        return ResponseEntity.ok(ApiResponse.success(response));
-//    }
+    @PostMapping("/{orderId}/pay")
+    public ResponseEntity<ApiResponse<OrderResponseDto>> payOrder(
+            @PathVariable Long orderId,
+            @RequestBody PaymentRequestDto paymentRequestDto,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+        OrderResponseDto response = payOrderUseCase.execute(
+                customUserDetails.getUserId(),
+                orderId,
+                paymentRequestDto,
+                idempotencyKey
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<OrderDetailResponseDto>>> getMyOrders(

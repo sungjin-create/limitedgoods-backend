@@ -147,6 +147,11 @@ public enum ErrorCode {
             "PAYMENT_004",
             "결제 취소에 실패했습니다."
     ),
+    PAYMENT_FINALIZATION_FAILED(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "PAYMENT_005",
+            "결제 승인은 완료됐지만 주문 확정이 지연되고 있습니다."
+    ),
 
     CART_NOT_FOUND(
             HttpStatus.BAD_REQUEST,

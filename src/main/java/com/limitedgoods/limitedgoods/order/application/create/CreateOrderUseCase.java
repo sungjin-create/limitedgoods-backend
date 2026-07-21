@@ -1,11 +1,10 @@
 package com.limitedgoods.limitedgoods.order.application.create;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
-import com.limitedgoods.limitedgoods.order.policy.OrderProductValidationResult;
+import com.limitedgoods.limitedgoods.order.application.create.idempotency.OrderRequestFingerprintGenerator;
 import com.limitedgoods.limitedgoods.order.dto.request.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
-import com.limitedgoods.limitedgoods.order.application.create.idempotency.OrderRequestFingerprintGenerator;
-import com.limitedgoods.limitedgoods.order.service.OrderService;
+import com.limitedgoods.limitedgoods.order.policy.OrderProductValidationResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +16,6 @@ public class CreateOrderUseCase {
 
     private static final long ORDER_EXPIRED_SECONDS = 300L;
 
-    private final OrderService orderService;
     private final OrderCreatePreconditionChecker preconditionChecker;
     private final OrderAdmissionCoordinator admissionCoordinator;
     private final OrderRequestFingerprintGenerator fingerprintGenerator;
