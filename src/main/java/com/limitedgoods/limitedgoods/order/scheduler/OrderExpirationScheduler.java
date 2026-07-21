@@ -1,7 +1,6 @@
 package com.limitedgoods.limitedgoods.order.scheduler;
 
 import com.limitedgoods.limitedgoods.order.application.expiration.OrderExpirationService;
-import com.limitedgoods.limitedgoods.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

@@ -49,10 +49,7 @@ public class OrderExpirationService {
         for (OrderItem orderItem : orderItems) {
             Long productId = orderItem.getProduct().getId();
 
-            productRepository.increaseStock(
-                    productId,
-                    orderItem.getQuantity()
-            );
+            productRepository.increaseStock(productId, orderItem.getQuantity());
             productSoldOutCacheService.clearSoldOutAfterCommit(productId);
         }
 
