@@ -1,7 +1,7 @@
 package com.limitedgoods.limitedgoods.backoffice.order.service;
 
+import com.limitedgoods.limitedgoods.backoffice.monitoring.query.BackofficeMonitoringQueryRepository;
 import com.limitedgoods.limitedgoods.backoffice.order.dto.*;
-import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,14 +15,14 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class BackofficeOrderService {
 
-    private final OrderRepository orderRepository;
+    private final BackofficeMonitoringQueryRepository monitoringQueryRepository;
 
     public BackofficeMonitoringResponse getBackofficeMonitoring(LocalDateTime startAt, LocalDateTime endAt){
         BackofficeMonitoringSummaryResponse getSummary;
         if (startAt == null || endAt == null) {
-            getSummary =  orderRepository.getBackofficeMonitoringSummary();
+            getSummary =  monitoringQueryRepository.getBackofficeMonitoringSummary();
         }  else {
-            getSummary = orderRepository.getBackofficeMonitoringSummary(startAt, endAt);
+            getSummary = monitoringQueryRepository.getBackofficeMonitoringSummary(startAt, endAt);
         }
 
         BackofficeMonitoringSummaryResponse summary = BackofficeMonitoringSummaryResponse.builder()
@@ -36,9 +36,9 @@ public class BackofficeOrderService {
 
         List<BackofficeMonitoringOrderFlatResponse> ordersFlatResponseList;
         if (startAt == null || endAt == null) {
-            ordersFlatResponseList =  orderRepository.findBackofficeMonitoringOrderFlat();
+            ordersFlatResponseList =  monitoringQueryRepository.findBackofficeMonitoringOrderFlat();
         }  else {
-            ordersFlatResponseList = orderRepository.findBackofficeMonitoringOrderFlat(startAt, endAt);
+            ordersFlatResponseList = monitoringQueryRepository.findBackofficeMonitoringOrderFlat(startAt, endAt);
         }
 
         Map<Long, BackofficeMonitoringOrdersResponse> monitoringOrderMap = new LinkedHashMap<>();
