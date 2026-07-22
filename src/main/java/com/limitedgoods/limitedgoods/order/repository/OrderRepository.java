@@ -61,7 +61,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     );
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.order.dto.response.OrderSummaryResponseDto(
+    select new com.limitedgoods.limitedgoods.order.dto.response.OrderSummaryResponse(
         o.id,
         o.totalPrice,
         o.status,
