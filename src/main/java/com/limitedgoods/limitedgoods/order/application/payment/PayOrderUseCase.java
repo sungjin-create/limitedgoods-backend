@@ -3,29 +3,37 @@ package com.limitedgoods.limitedgoods.order.application.payment;
 import com.limitedgoods.limitedgoods.cart.service.CartService;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
-import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
-import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
-import com.limitedgoods.limitedgoods.payment.OrderPaymentInfo;
-import com.limitedgoods.limitedgoods.payment.dto.PaymentRequestDto;
-import com.limitedgoods.limitedgoods.payment.service.PaymentFailedException;
+import com.limitedgoods.limitedgoods.order.application.payment.dto.PaymentStartResult;
 import com.limitedgoods.limitedgoods.order.application.payment.idempotency.OrderPaymentIdempotencyService;
+import com.limitedgoods.limitedgoods.order.application.payment.idempotency.PaymentRequestFingerprintGenerator;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
+import com.limitedgoods.limitedgoods.payment.dto.PaymentLookupResult;
+import com.limitedgoods.limitedgoods.payment.dto.PaymentRequestDto;
+import com.limitedgoods.limitedgoods.payment.dto.PaymentResult;
+import com.limitedgoods.limitedgoods.payment.exception.PaymentDeclinedException;
+import com.limitedgoods.limitedgoods.payment.exception.PaymentNetworkException;
+import com.limitedgoods.limitedgoods.payment.exception.PaymentTimeoutException;
 import com.limitedgoods.limitedgoods.payment.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PayOrderUseCase {
 
-    private final OrderPaymentService orderPaymentService;
     private final ApprovedPaymentFinalizer paymentFinalizer;
-
+    private final PaymentRequestFingerprintGenerator fingerprintGenerator;
+    private final PaymentCommandService paymentCommandService;
     private final PaymentService paymentService;
     private final OrderPaymentIdempotencyService orderPaymentIdempotencyService;
-
     private final CartService cartService;
+
+    private static final Pattern IDEMPOTENCY_KEY_PATTERN =
+            Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._:-]{7,99}$");
 
     public OrderResponseDto execute(
             Long userId,
@@ -33,124 +41,141 @@ public class PayOrderUseCase {
             PaymentRequestDto request,
             String idempotencyKey
     ) {
-        OrderResponseDto savedResponse =
+        validateIdempotencyKey(idempotencyKey);
+
+        OrderResponseDto cachedResponse =
                 orderPaymentIdempotencyService.getSavedResponse(
                         userId,
                         orderId,
                         idempotencyKey
                 );
 
-        if (savedResponse != null) {
-            return savedResponse;
+        if (cachedResponse != null) {
+            return cachedResponse;
         }
 
-        boolean locked =
-                orderPaymentIdempotencyService.acquireLock(
+        String fingerprint = fingerprintGenerator.generate(orderId, request);
+
+        PaymentStartResult start =
+                paymentCommandService.preparePayment(
                         userId,
                         orderId,
-                        idempotencyKey
+                        idempotencyKey,
+                        fingerprint
                 );
 
-        if (!locked) {
-            throw new BusinessException(ErrorCode.DUPLICATE_PAYMENT_REQUEST);
-        }
+        return switch (start.action()) {
+            case RETURN_PAID ->
+                    completeSuccess(
+                            userId,
+                            orderId,
+                            idempotencyKey,
+                            start.completedOrder()
+                    );
 
-        try {
-            return processPayment(
-                    userId,
-                    orderId,
-                    request,
-                    idempotencyKey
-            );
-        } finally {
-            releaseLockBestEffort(
-                    userId,
-                    orderId,
-                    idempotencyKey
+            case FINALIZE_APPROVED -> {
+                OrderResponseDto response =
+                        paymentFinalizer.finalizePayment(
+                                userId,
+                                orderId
+                        );
+
+                yield completeSuccess(
+                        userId,
+                        orderId,
+                        idempotencyKey,
+                        response
+                );
+            }
+
+            case RECONCILE_PG -> {
+                OrderResponseDto response =
+                        reconcilePayment(userId, start);
+
+                yield completeSuccess(
+                        userId,
+                        orderId,
+                        idempotencyKey,
+                        response
+                );
+            }
+
+            case REQUEST_PG ->
+                    requestAndCompletePayment(
+                            userId,
+                            request,
+                            start,
+                            idempotencyKey
+                    );
+        };
+    }
+
+    private void validateIdempotencyKey(String idempotencyKey) {
+        if (idempotencyKey == null
+                || idempotencyKey.isBlank()
+                || !IDEMPOTENCY_KEY_PATTERN.matcher(idempotencyKey).matches()) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_PAYMENT_IDEMPOTENCY_KEY
             );
         }
     }
 
-    private OrderResponseDto processPayment(
+    private OrderResponseDto reconcilePayment(
             Long userId,
-            Long orderId,
-            PaymentRequestDto request,
-            String idempotencyKey
+            PaymentStartResult start
     ) {
-        OrderPaymentInfo paymentInfo = orderPaymentService.getPaymentInfo(userId, orderId);
-
-        /*
-         * PG 승인은 이미 성공했다.
-         * 외부 PG를 다시 호출하지 않고 내부 확정만 수행한다.
-         */
-        if (paymentInfo.orderStatus() == OrderStatus.PAYMENT_APPROVED) {
-
-            OrderResponseDto response = paymentFinalizer.finalizePayment(userId, orderId);
-
-            return completeSuccess(
-                    userId,
-                    orderId,
-                    idempotencyKey,
-                    response
-            );
-        }
-
-        /*
-         * 이미 모든 결제 처리가 완료됐다.
-         */
-        if (paymentInfo.orderStatus() == OrderStatus.PAID) {
-            OrderResponseDto response = paymentFinalizer.finalizePayment(userId, orderId);
-
-            return completeSuccess(
-                    userId,
-                    orderId,
-                    idempotencyKey,
-                    response
-            );
-        }
-
-        paymentInfo = orderPaymentService.startPayment(userId, orderId);
-
-        requestPgPayment(
-                userId,
-                orderId,
-                paymentInfo.totalPrice(),
-                request
+        PaymentLookupResult lookup = paymentService.lookup(
+                start.orderId(),
+                start.idempotencyKey()
         );
 
-        orderPaymentService.markPaymentApproved(userId, orderId);
+        return switch (lookup.status()) {
+            case APPROVED -> {
+                boolean approved =
+                        paymentCommandService.recordApproval(
+                                userId,
+                                start.orderId(),
+                                start.paymentAttemptId(),
+                                lookup.toPaymentResult()
+                        );
 
-        OrderResponseDto response = paymentFinalizer.finalizePayment(userId, orderId);
+                if (!approved) {
+                    throw new BusinessException(
+                            ErrorCode.PAYMENT_AMOUNT_MISMATCH
+                    );
+                }
 
-        return completeSuccess(
-                userId,
-                orderId,
-                idempotencyKey,
-                response
-        );
-    }
+                yield paymentFinalizer.finalizePayment(
+                        userId,
+                        start.orderId()
+                );
+            }
 
-    private void requestPgPayment(
-            Long userId,
-            Long orderId,
-            Long totalPrice,
-            PaymentRequestDto request
-    ) {
-        try {
-            paymentService.pay(
-                    orderId,
-                    totalPrice,
-                    request
-            );
-        } catch (PaymentFailedException exception) {
-            orderPaymentService.failPayment(
-                    userId,
-                    orderId,
-                    exception.getMessage()
-            );
+            case DECLINED -> {
+                paymentCommandService.recordDecline(
+                        userId,
+                        start.orderId(),
+                        start.paymentAttemptId(),
+                        lookup.failureCode(),
+                        lookup.failureReason()
+                );
 
-            throw new BusinessException(ErrorCode.PAYMENT_FAILED);
-        }
+                throw new BusinessException(
+                        ErrorCode.PAYMENT_FAILED
+                );
+            }
+
+            case PROCESSING, NOT_FOUND -> {
+                paymentCommandService.recordUnknown(
+                        start.paymentAttemptId(),
+                        "PG 결제 결과 확인 중"
+                );
+
+                throw new BusinessException(
+                        ErrorCode.PAYMENT_PROCESSING
+                );
+            }
+        };
     }
 
     private OrderResponseDto completeSuccess(
@@ -165,8 +190,6 @@ public class PayOrderUseCase {
                 idempotencyKey,
                 response
         );
-
-        clearCartBestEffort(userId, orderId);
 
         return response;
     }
@@ -215,27 +238,66 @@ public class PayOrderUseCase {
         }
     }
 
-    private void releaseLockBestEffort(
+    private OrderResponseDto requestAndCompletePayment(
             Long userId,
-            Long orderId,
+            PaymentRequestDto request,
+            PaymentStartResult start,
             String idempotencyKey
     ) {
         try {
-            orderPaymentIdempotencyService.releaseLock(
-                    userId,
-                    orderId,
-                    idempotencyKey
+            PaymentResult result = paymentService.pay(
+                    start.orderId(),
+                    start.amount(),
+                    start.idempotencyKey(),
+                    request
             );
-        } catch (Exception exception) {
-            /*
-             * 락 해제 실패가 이미 성공한 결제 응답을 덮어쓰지 않도록 한다.
-             * 락에는 TTL이 있어야 한다.
-             */
-            log.error(
-                    "[결제 멱등 락 해제 실패] userId={}, orderId={}",
+
+            boolean approved =
+                    paymentCommandService.recordApproval(
+                            userId,
+                            start.orderId(),
+                            start.paymentAttemptId(),
+                            result
+                    );
+
+            if (!approved) {
+                throw new BusinessException(
+                        ErrorCode.PAYMENT_AMOUNT_MISMATCH
+                );
+            }
+
+            OrderResponseDto response =
+                    paymentFinalizer.finalizePayment(
+                            userId,
+                            start.orderId()
+                    );
+
+            return completeSuccess(
                     userId,
-                    orderId,
-                    exception
+                    start.orderId(),
+                    idempotencyKey,
+                    response
+            );
+
+        } catch (PaymentDeclinedException exception) {
+            paymentCommandService.recordDecline(
+                    userId,
+                    start.orderId(),
+                    start.paymentAttemptId(),
+                    exception.getFailureCode(),
+                    exception.getMessage()
+            );
+
+            throw new BusinessException(ErrorCode.PAYMENT_FAILED);
+
+        } catch (PaymentTimeoutException | PaymentNetworkException exception) {
+            paymentCommandService.recordUnknown(
+                    start.paymentAttemptId(),
+                    exception.getMessage()
+            );
+
+            throw new BusinessException(
+                    ErrorCode.PAYMENT_RESULT_UNKNOWN
             );
         }
     }
