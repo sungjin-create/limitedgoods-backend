@@ -2,6 +2,7 @@ package com.limitedgoods.limitedgoods.order.application.create;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
+import com.limitedgoods.limitedgoods.order.application.create.dto.OrderStockReservationResult;
 import com.limitedgoods.limitedgoods.order.application.history.OrderStatusHistoryService;
 import com.limitedgoods.limitedgoods.order.application.mapper.OrderResponseMapper;
 import com.limitedgoods.limitedgoods.order.dto.request.OrderItemRequestDto;

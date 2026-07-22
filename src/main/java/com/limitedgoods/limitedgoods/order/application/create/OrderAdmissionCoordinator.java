@@ -2,6 +2,7 @@ package com.limitedgoods.limitedgoods.order.application.create;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
+import com.limitedgoods.limitedgoods.order.application.create.dto.OrderAdmissionClaim;
 import com.limitedgoods.limitedgoods.queue.service.AdmissionTokenService;
 import com.limitedgoods.limitedgoods.queue.service.QueueService;
 import lombok.RequiredArgsConstructor;
