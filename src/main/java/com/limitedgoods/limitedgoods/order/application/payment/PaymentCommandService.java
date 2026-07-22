@@ -6,9 +6,9 @@ import com.limitedgoods.limitedgoods.order.application.history.OrderStatusHistor
 import com.limitedgoods.limitedgoods.order.application.mapper.OrderResponseMapper;
 import com.limitedgoods.limitedgoods.order.application.payment.dto.PaymentStartAction;
 import com.limitedgoods.limitedgoods.order.application.payment.dto.PaymentStartResult;
+import com.limitedgoods.limitedgoods.order.application.support.OrderAccessService;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
-import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
 import com.limitedgoods.limitedgoods.payment.dto.PaymentResult;
 import com.limitedgoods.limitedgoods.payment.entity.PaymentAttempt;
 import com.limitedgoods.limitedgoods.payment.entity.PaymentAttemptStatus;
@@ -24,10 +24,10 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class PaymentCommandService {
 
-    private final OrderRepository orderRepository;
     private final OrderResponseMapper orderResponseMapper;
     private final PaymentAttemptRepository paymentAttemptRepository;
     private final OrderStatusHistoryService historyService;
+    private final OrderAccessService orderAccessService;
 
     @Transactional
     public PaymentStartResult preparePayment(
@@ -36,7 +36,7 @@ public class PaymentCommandService {
             String idempotencyKey,
             String requestFingerprint
     ) {
-        Order order = getOrderForUpdate(orderId, userId);
+        Order order = orderAccessService.getOwnedOrderForUpdate(orderId, userId);
 
         if (order.getStatus() == OrderStatus.PAID) {
             return returnPaid(order);
@@ -97,7 +97,7 @@ public class PaymentCommandService {
             Long paymentAttemptId,
             PaymentResult result
     ) {
-        Order order = getOrderForUpdate(orderId, userId);
+        Order order = orderAccessService.getOwnedOrderForUpdate(orderId, userId);
         PaymentAttempt attempt = getAttemptForUpdate(paymentAttemptId);
 
         validateAttemptOrder(attempt, orderId);
@@ -139,7 +139,7 @@ public class PaymentCommandService {
             String code,
             String reason
     ) {
-        Order order = getOrderForUpdate(orderId, userId);
+        Order order = orderAccessService.getOwnedOrderForUpdate(orderId, userId);
         PaymentAttempt attempt = getAttemptForUpdate(paymentAttemptId);
 
         validateAttemptOrder(attempt, orderId);
@@ -179,17 +179,6 @@ public class PaymentCommandService {
         if (attempt.getStatus() == PaymentAttemptStatus.PROCESSING) {
             attempt.markUnknown(reason);
         }
-    }
-
-    private Order getOrderForUpdate(Long orderId, Long userId) {
-        Order order = orderRepository.findByIdForUpdate(orderId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        if (!order.getUser().getId().equals(userId)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-
-        return order;
     }
 
     private PaymentStartResult returnPaid(Order order) {

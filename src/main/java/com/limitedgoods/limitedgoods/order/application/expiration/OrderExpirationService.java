@@ -6,6 +6,7 @@ import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEventType;
 import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventService;
 import com.limitedgoods.limitedgoods.event.payload.order.OrderExpiredEvent;
 import com.limitedgoods.limitedgoods.order.application.history.OrderStatusHistoryService;
+import com.limitedgoods.limitedgoods.order.application.support.OrderAccessService;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
@@ -30,14 +31,11 @@ public class OrderExpirationService {
     private final ProductSoldOutCacheService productSoldOutCacheService;
     private final OutboxEventService outboxEventService;
     private final OrderStatusHistoryService historyService;
+    private final OrderAccessService orderAccessService;
 
     @Transactional
     public void expireOrder(Long orderId) {
-        Order order = orderRepository
-                .findByIdForExpirationUpdate(orderId)
-                .orElseThrow(() -> new BusinessException(
-                        ErrorCode.ORDER_NOT_FOUND
-                ));
+        Order order = orderAccessService.getOrderForUpdate(orderId);
 
         LocalDateTime now = LocalDateTime.now();
 

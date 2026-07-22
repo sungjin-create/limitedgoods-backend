@@ -202,7 +202,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     join fetch o.user
     where o.id = :orderId
     """)
-    Optional<Order> findByIdForExpirationUpdate(
+    Optional<Order> findByIdForUpdate(
             @Param("orderId") Long orderId
     );
 }

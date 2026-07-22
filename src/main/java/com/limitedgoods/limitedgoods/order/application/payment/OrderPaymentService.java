@@ -9,6 +9,7 @@ import com.limitedgoods.limitedgoods.event.payload.order.OrderPaidEvent;
 import com.limitedgoods.limitedgoods.event.payload.order.OrderPaidItem;
 import com.limitedgoods.limitedgoods.order.application.history.OrderStatusHistoryService;
 import com.limitedgoods.limitedgoods.order.application.mapper.OrderResponseMapper;
+import com.limitedgoods.limitedgoods.order.application.support.OrderAccessService;
 import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
@@ -35,6 +36,7 @@ public class OrderPaymentService {
     private final OrderResponseMapper orderResponseMapper;
     private final CartService cartService;
     private final OrderStatusHistoryService historyService;
+    private final OrderAccessService orderAccessService;
 
     @Transactional(readOnly = true)
     public OrderPaymentInfo getPaymentInfo(Long userId, Long orderId) {
@@ -45,7 +47,7 @@ public class OrderPaymentService {
     @Transactional
     public OrderResponseDto finalizeApprovedPayment(Long userId, Long orderId) {
 
-        Order order = getOrderForUpdate(orderId, userId);
+        Order order = orderAccessService.getOwnedOrderForUpdate(orderId, userId);
 
         if (order.getStatus() == OrderStatus.PAID) {
             return orderResponseMapper.toResponse(order);
@@ -108,17 +110,6 @@ public class OrderPaymentService {
 
     private Order getOrder(Long orderId, Long userId) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        if (!order.getUser().getId().equals(userId)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-
-        return order;
-    }
-
-    private Order getOrderForUpdate(Long orderId, Long userId) {
-        Order order = orderRepository.findByIdForUpdate(orderId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
         if (!order.getUser().getId().equals(userId)) {
