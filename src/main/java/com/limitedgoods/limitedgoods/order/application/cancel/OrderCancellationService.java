@@ -5,15 +5,17 @@ import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEventType;
 import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventService;
 import com.limitedgoods.limitedgoods.event.payload.order.OrderCanceledEvent;
+import com.limitedgoods.limitedgoods.order.application.cancel.dto.RefundCommand;
+import com.limitedgoods.limitedgoods.order.application.history.OrderStatusHistoryService;
 import com.limitedgoods.limitedgoods.order.application.mapper.OrderResponseMapper;
-import com.limitedgoods.limitedgoods.order.application.payment.OrderPaymentService;
+import com.limitedgoods.limitedgoods.order.application.support.OrderAccessService;
 import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import com.limitedgoods.limitedgoods.order.repository.OrderItemRepository;
-import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
-import com.limitedgoods.limitedgoods.payment.OrderPaymentInfo;
+import com.limitedgoods.limitedgoods.payment.entity.PaymentAttempt;
+import com.limitedgoods.limitedgoods.payment.repository.PaymentAttemptRepository;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import com.limitedgoods.limitedgoods.product.service.ProductSoldOutCacheService;
 import lombok.RequiredArgsConstructor;
@@ -27,124 +29,162 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OrderCancellationService {
 
-    private final OrderRepository orderRepository;
-    private final ProductRepository productRepository;
-    private final OrderItemRepository orderItemRepository;
-    private final OutboxEventService outboxEventService;
     private final OrderResponseMapper orderResponseMapper;
-    private final OrderPaymentService orderPaymentService;
+    private final OrderAccessService orderAccessService;
+    private final OrderItemRepository orderItemRepository;
+    private final ProductRepository productRepository;
     private final ProductSoldOutCacheService productSoldOutCacheService;
+    private final OrderStatusHistoryService historyService;
+    private final PaymentAttemptRepository paymentAttemptRepository;
+    private final OutboxEventService outboxEventService;
 
     @Transactional
-    public OrderResponseDto cancelPaidOrder(Long userId, Long orderId) {
-        Order order = getOrderForUpdate(orderId, userId);
+    public RefundCommand prepareRefund(
+            Long userId,
+            Long orderId
+    ) {
+        Order order = orderAccessService.getOwnedOrderForUpdate(orderId, userId);
 
-        if (order.getStatus() == OrderStatus.CANCELED) {
+        OrderStatus previousStatus = order.getStatus();
+
+        if (previousStatus == OrderStatus.REFUNDED) {
             throw new BusinessException(ErrorCode.ORDER_ALREADY_CANCELED);
         }
 
-        if (order.getStatus() == OrderStatus.COMPLETED) {
-            throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
+        if (previousStatus == OrderStatus.CANCEL_REQUESTED) {
+            throw new BusinessException(ErrorCode.PAYMENT_REFUND_PROCESSING);
         }
 
-        if (order.getStatus() != OrderStatus.PAID) {
-            throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
+        if (previousStatus == OrderStatus.PAID) {
+            order.requestCancel();
+
+            historyService.record(
+                    order,
+                    previousStatus,
+                    OrderStatus.CANCEL_REQUESTED,
+                    "사용자 환불 요청",
+                    order.getUser()
+            );
+
+        } else if (previousStatus == OrderStatus.CANCEL_FAILED) {
+            order.retryCancel();
+
+            historyService.record(
+                    order,
+                    previousStatus,
+                    OrderStatus.CANCEL_REQUESTED,
+                    "사용자 환불 재시도",
+                    order.getUser()
+            );
+
+        } else {
+            throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED,
+                    "현재 STATUS = " + previousStatus);
         }
 
-        order.cancelPaidOrder();
+        PaymentAttempt paymentAttempt = getApprovedPaymentAttempt(orderId);
 
-        return orderResponseMapper.toResponse(order);
+        return new RefundCommand(
+                userId,
+                orderId,
+                paymentAttempt.getPgTransactionId(),
+                order.getTotalPrice(),
+                "refund:" + orderId
+        );
     }
 
     @Transactional
-    public OrderPaymentInfo requestCancel(Long userId, Long orderId) {
-        Order order = getOrderForUpdate(orderId, userId);
-
-        if (order.getStatus() == OrderStatus.REFUNDED) {
-            throw new BusinessException(ErrorCode.ORDER_ALREADY_CANCELED);
-        }
-
-        if (order.getStatus() == OrderStatus.COMPLETED) {
-            throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
-        }
-
-        if (order.getStatus() == OrderStatus.CANCEL_REQUESTED) {
-            return orderPaymentService.getPaymentInfo(userId, orderId);
-        }
-
-        if (order.getStatus() == OrderStatus.CANCEL_FAILED) {
-            return orderPaymentService.getPaymentInfo(userId, orderId);
-        }
-
-        if (order.getStatus() != OrderStatus.PAID) {
-            throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
-        }
-
-        order.requestCancel();
-
-        return new OrderPaymentInfo(order.getId(), order.getTotalPrice(), order.getStatus());
-    }
-
-    @Transactional
-    public OrderResponseDto completeRefund(Long userId, Long orderId) {
-        Order order = getOrderForUpdate(orderId, userId);
+    public OrderResponseDto completeRefund(
+            Long userId,
+            Long orderId
+    ) {
+        Order order = orderAccessService.getOwnedOrderForUpdate(orderId, userId);
 
         if (order.getStatus() == OrderStatus.REFUNDED) {
             return orderResponseMapper.toResponse(order);
         }
 
-        if (order.getStatus() != OrderStatus.CANCEL_REQUESTED
-                && order.getStatus() != OrderStatus.CANCEL_FAILED) {
-            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS, "현재 주문 상태 = " + order.getStatus());
+        if (order.getStatus() != OrderStatus.CANCEL_REQUESTED) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_ORDER_STATUS,
+                    "현재 STATUS = " + order.getStatus()
+            );
         }
 
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
 
-        for (OrderItem orderItem : orderItems) {
-            Long productId = orderItem.getProduct().getId();
+        if (orderItems.isEmpty()) {
+            throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
+        }
 
-            productRepository.increaseStock(
-                    productId,
-                    orderItem.getQuantity()
-            );
+        for (OrderItem item : orderItems) {
+            Long productId = item.getProduct().getId();
+
+            productRepository.increaseStock(productId, item.getQuantity());
+
             productSoldOutCacheService.clearSoldOutAfterCommit(productId);
         }
 
+        OrderStatus previousStatus = order.getStatus();
+
         order.markRefunded();
+
+        historyService.record(
+                order,
+                previousStatus,
+                OrderStatus.REFUNDED,
+                "PG 환불 완료",
+                order.getUser()
+        );
 
         outboxEventService.save(
                 OutboxEventType.ORDER_CANCELED,
                 "ORDER",
-                order.getId(),
-                new OrderCanceledEvent(order.getId(), userId, LocalDateTime.now())
+                orderId,
+                new OrderCanceledEvent(
+                        orderId,
+                        userId,
+                        LocalDateTime.now()
+                )
         );
 
         return orderResponseMapper.toResponse(order);
     }
 
     @Transactional
-    public void failRefund(Long userId, Long orderId, String reason) {
-        Order order = getOrderForUpdate(orderId, userId);
+    public void failRefund(
+            Long userId,
+            Long orderId,
+            String reason
+    ) {
+        Order order = orderAccessService.getOwnedOrderForUpdate(orderId, userId);
 
         if (order.getStatus() == OrderStatus.REFUNDED) {
             return;
         }
 
         if (order.getStatus() != OrderStatus.CANCEL_REQUESTED) {
-            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS, "현재 주문 상태 = " + order.getStatus());
+            throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS);
         }
+
+        OrderStatus previousStatus = order.getStatus();
 
         order.markCancelFailed(reason);
+
+        historyService.record(
+                order,
+                previousStatus,
+                OrderStatus.CANCEL_FAILED,
+                reason,
+                order.getUser()
+        );
     }
 
-    private Order getOrderForUpdate(Long orderId, Long userId) {
-        Order order = orderRepository.findByIdForUpdate(orderId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        if (!order.getUser().getId().equals(userId)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-
-        return order;
+    private PaymentAttempt getApprovedPaymentAttempt(Long orderId) {
+        return paymentAttemptRepository
+                .findApprovedForRefund(orderId)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.PAYMENT_ATTEMPT_NOT_FOUND));
     }
+
 }

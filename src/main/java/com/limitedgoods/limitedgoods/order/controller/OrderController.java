@@ -1,6 +1,8 @@
 package com.limitedgoods.limitedgoods.order.controller;
 
 import com.limitedgoods.limitedgoods.common.response.ApiResponse;
+import com.limitedgoods.limitedgoods.order.application.cancel.CancelOrderUseCase;
+import com.limitedgoods.limitedgoods.order.application.cancel.OrderCancellationService;
 import com.limitedgoods.limitedgoods.order.application.create.CreateOrderUseCase;
 import com.limitedgoods.limitedgoods.order.application.payment.PayOrderUseCase;
 import com.limitedgoods.limitedgoods.order.application.query.OrderQueryService;
@@ -27,6 +29,7 @@ public class OrderController {
     private final OrderQueryService orderQueryService;
     private final CreateOrderUseCase createOrderUseCase;
     private final PayOrderUseCase payOrderUseCase;
+    private final CancelOrderUseCase cancelOrderUseCase;
 
     @PostMapping("/create")
     public ResponseEntity<ApiResponse<OrderResponseDto>> createOrder(
@@ -74,30 +77,36 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-//    @PostMapping("/{orderId}/cancel")
-//    public ResponseEntity<ApiResponse<OrderResponseDto>> cancelOrder(
-//            @PathVariable Long orderId,
-//            @AuthenticationPrincipal CustomUserDetails customUserDetails
-//    ) {
-//        OrderResponseDto response = orderFacade.cancelOrder(
-//                customUserDetails.getUserId(),
-//                orderId
-//        );
-//
-//        return ResponseEntity.ok(ApiResponse.success(response));
-//    }
+    @PostMapping("/{orderId}/cancel")
+    public ResponseEntity<ApiResponse<OrderResponseDto>> cancelOrder(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        OrderResponseDto response =
+                cancelOrderUseCase.execute(
+                        userDetails.getUserId(),
+                        orderId
+                );
 
-//    @PostMapping("/{orderId}/refund/retry")
-//    public ResponseEntity<ApiResponse<OrderResponseDto>> retryRefund(
-//            @PathVariable Long orderId,
-//            @AuthenticationPrincipal CustomUserDetails customUserDetails
-//    ) {
-//        OrderResponseDto response = orderFacade.retryRefund(
-//                customUserDetails.getUserId(),
-//                orderId
-//        );
-//
-//        return ResponseEntity.ok(ApiResponse.success(response));
-//    }
+        return ResponseEntity.ok(
+                ApiResponse.success(response)
+        );
+    }
+
+    @PostMapping("/{orderId}/refund/retry")
+    public ResponseEntity<ApiResponse<OrderResponseDto>> retryRefund(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        OrderResponseDto response =
+                cancelOrderUseCase.execute(
+                        userDetails.getUserId(),
+                        orderId
+                );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(response)
+        );
+    }
 
 }

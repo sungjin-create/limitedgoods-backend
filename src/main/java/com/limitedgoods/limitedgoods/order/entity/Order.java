@@ -112,9 +112,11 @@ public class Order {
         this.updatedAt = now;
     }
 
-    public void cancelPaidOrder() {
-        validateCurrentStatus(OrderStatus.PAID);
-        this.status = OrderStatus.CANCELED;
+    public void retryCancel(){
+        validateCurrentStatus(OrderStatus.CANCEL_FAILED);
+
+        this.status = OrderStatus.CANCEL_REQUESTED;
+        this.cancelFailReason = null;
         this.updatedAt = LocalDateTime.now();
     }
 

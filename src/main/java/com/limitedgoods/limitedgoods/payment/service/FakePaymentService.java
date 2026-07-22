@@ -99,7 +99,8 @@ public class FakePaymentService implements PaymentService {
     @Override
     public void cancel(
             String pgTransactionId,
-            long amount
+            long amount,
+            String idempotencyKey
     ) {
         // Fake 구현에서는 취소 성공으로 처리
     }

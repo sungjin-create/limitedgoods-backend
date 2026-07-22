@@ -20,6 +20,7 @@ public interface PaymentService {
 
     void cancel(
             String pgTransactionId,
-            long amount
+            long amount,
+            String idempotencyKey
     );
 }
