@@ -2,15 +2,13 @@ package com.limitedgoods.limitedgoods.backoffice.order.service;
 
 import com.limitedgoods.limitedgoods.backoffice.order.dto.*;
 import com.limitedgoods.limitedgoods.backoffice.order.query.BackofficeOrderQueryRepository;
-import com.limitedgoods.limitedgoods.common.exception.BusinessException;
-import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
+import com.limitedgoods.limitedgoods.backoffice.order.query.OrderFlatQueryResult;
 import com.limitedgoods.limitedgoods.order.application.history.OrderStatusHistoryService;
 import com.limitedgoods.limitedgoods.order.application.support.OrderAccessService;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import com.limitedgoods.limitedgoods.user.application.support.UserAccessService;
 import com.limitedgoods.limitedgoods.user.entity.User;
-import com.limitedgoods.limitedgoods.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +26,6 @@ public class BackofficeOrderService {
     private final BackofficeOrderQueryRepository orderQueryRepository;
     private final OrderAccessService orderAccessService;
     private final UserAccessService userAccessService;
-    private final UserRepository userRepository;
     private final OrderStatusHistoryService historyService;
 
     @Transactional(readOnly = true)
@@ -40,7 +37,7 @@ public class BackofficeOrderService {
             summary = orderQueryRepository.getBackofficeOrderSummary(startAt, endAt);
         }
 
-        List<OrderFlatResponse> ordersFlatResponseList;
+        List<OrderFlatQueryResult> ordersFlatResponseList;
         if (startAt == null || endAt == null) {
             ordersFlatResponseList =  orderQueryRepository.findBackofficeOrdersFlat();
         }  else {
@@ -48,7 +45,7 @@ public class BackofficeOrderService {
         }
 
         Map<Long, OrderResponse> orderResponseMap = new LinkedHashMap<>();
-        for(OrderFlatResponse flat: ordersFlatResponseList) {
+        for(OrderFlatQueryResult flat: ordersFlatResponseList) {
             OrderResponse orderResponse =
                     orderResponseMap.computeIfAbsent(flat.orderId(), id ->
                             new OrderResponse(

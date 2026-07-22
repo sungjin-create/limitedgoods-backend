@@ -1,6 +1,5 @@
 package com.limitedgoods.limitedgoods.product.scheduler;
 
-import com.limitedgoods.limitedgoods.backoffice.product.service.BackofficeProductService;
 import com.limitedgoods.limitedgoods.product.service.ProductStatusService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

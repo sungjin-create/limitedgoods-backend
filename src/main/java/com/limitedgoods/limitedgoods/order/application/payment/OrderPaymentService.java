@@ -16,7 +16,7 @@ import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import com.limitedgoods.limitedgoods.order.repository.OrderItemRepository;
 import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
-import com.limitedgoods.limitedgoods.payment.OrderPaymentInfo;
+import com.limitedgoods.limitedgoods.order.application.payment.dto.OrderPaymentInfo;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

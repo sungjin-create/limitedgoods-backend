@@ -1,6 +1,5 @@
 package com.limitedgoods.limitedgoods.backoffice.order.query;
 
-import com.limitedgoods.limitedgoods.backoffice.order.dto.OrderFlatResponse;
 import com.limitedgoods.limitedgoods.backoffice.order.dto.OrderSummaryResponse;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -40,7 +39,7 @@ public interface BackofficeOrderQueryRepository extends JpaRepository<Order, Lon
     );
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.backoffice.order.dto.OrderFlatResponse(
+    select new com.limitedgoods.limitedgoods.backoffice.order.query.OrderFlatQueryResult(
         o.id,
         u.email,
         o.totalPrice,
@@ -57,10 +56,10 @@ public interface BackofficeOrderQueryRepository extends JpaRepository<Order, Lon
     join oi.product p
     order by o.createdAt desc
     """)
-    List<OrderFlatResponse> findBackofficeOrdersFlat();
+    List<OrderFlatQueryResult> findBackofficeOrdersFlat();
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.backoffice.order.dto.OrderFlatResponse(
+    select new com.limitedgoods.limitedgoods.backoffice.order.query.OrderFlatQueryResult(
         o.id,
         u.email,
         o.totalPrice,
@@ -79,7 +78,7 @@ public interface BackofficeOrderQueryRepository extends JpaRepository<Order, Lon
       and (o.expiresAt <= :endAt)
     order by o.createdAt desc
     """)
-    List<OrderFlatResponse> findBackofficeOrdersFlat(
+    List<OrderFlatQueryResult> findBackofficeOrdersFlat(
             @Param("startAt") LocalDateTime startAt,
             @Param("endAt") LocalDateTime endAt
     );

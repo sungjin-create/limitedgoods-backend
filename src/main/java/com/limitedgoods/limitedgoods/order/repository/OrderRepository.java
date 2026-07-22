@@ -164,23 +164,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     );
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.backoffice.dashboard.dto.BackofficeRecentOrderResponse(
-        o.id,
-        u.email,
-        p.name,
-        o.totalPrice,
-        o.status,
-        o.createdAt
-    )
-    from OrderItem oi
-    join oi.order o
-    join o.user u
-    join oi.product p
-    order by o.createdAt desc
-    """)
-    List<BackofficeRecentOrderResponse> findRecentOrders(Pageable pageable);
-
-    @Query("""
     select o
     from Order o
     where o.user.id = :userId

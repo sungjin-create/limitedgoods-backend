@@ -1,6 +1,7 @@
 package com.limitedgoods.limitedgoods.backoffice.dashboard.service;
 
 import com.limitedgoods.limitedgoods.backoffice.dashboard.dto.*;
+import com.limitedgoods.limitedgoods.backoffice.dashboard.repository.BackofficeDashboardQueryRepository;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
@@ -18,6 +19,7 @@ public class BackofficeDashboardService {
 
     private static final int LOW_STOCK_THRESHOLD = 5;
 
+    private final BackofficeDashboardQueryRepository backofficeDashboardQueryRepository;
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
 
@@ -79,7 +81,7 @@ public class BackofficeDashboardService {
                 .build();
 
         List<BackofficeRecentOrderResponse> recentOrders =
-                orderRepository.findRecentOrders(PageRequest.of(0, 5));
+                backofficeDashboardQueryRepository.findRecentOrders(PageRequest.of(0, 5));
 
         List<BackofficeAlertResponse> alerts = buildAlerts(
                 lowStockProductCount,
