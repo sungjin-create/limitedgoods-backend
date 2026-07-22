@@ -187,6 +187,17 @@ public enum ErrorCode {
             "PAYMENT_012",
             "유효하지 않은 결제 멱등 키입니다."
     ),
+    PAYMENT_REFUND_PROCESSING(
+            HttpStatus.ACCEPTED,
+            "PAYMENT_013",
+            "환불을 처리하고 있습니다."
+    ),
+
+    PAYMENT_REFUND_RESULT_UNKNOWN(
+            HttpStatus.ACCEPTED,
+            "PAYMENT_014",
+            "환불 결과를 확인하고 있습니다."
+    ),
 
     CART_NOT_FOUND(
             HttpStatus.BAD_REQUEST,
