@@ -63,7 +63,6 @@ public class CreateOrderUseCase {
                             checkoutToken,
                             requestFingerprint
                     );
-
             admissionCoordinator.completeAfterOrderCreated(admissionClaim);
 
             return order;

@@ -2,6 +2,7 @@ package com.limitedgoods.limitedgoods.order.application.create;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
+import com.limitedgoods.limitedgoods.order.application.history.OrderStatusHistoryService;
 import com.limitedgoods.limitedgoods.order.application.mapper.OrderResponseMapper;
 import com.limitedgoods.limitedgoods.order.dto.request.OrderItemRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
@@ -35,6 +36,7 @@ public class OrderCreateTransactionService {
     private final ProductSoldOutCacheService productSoldOutCacheService;
     private final OrderItemRepository orderItemRepository;
     private final OrderStockReservationService stockReservationService;
+    private final OrderStatusHistoryService historyService;
 
 
     @Transactional
@@ -70,6 +72,8 @@ public class OrderCreateTransactionService {
         );
 
         saveOrderItems(savedOrder, reservation.orderItems());
+
+        historyService.createInitialHistory(savedOrder);
 
         return orderResponseMapper.toResponse(savedOrder);
     }

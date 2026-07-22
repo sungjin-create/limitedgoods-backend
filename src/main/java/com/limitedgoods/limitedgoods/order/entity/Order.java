@@ -79,7 +79,6 @@ public class Order {
         this.updatedAt = now;
         this.failReason = null;
         this.failedAt = null;
-        this.status = OrderStatus.PAYMENT_PENDING;
         this.updatedAt = LocalDateTime.now();
 
         this.failReason = null;
