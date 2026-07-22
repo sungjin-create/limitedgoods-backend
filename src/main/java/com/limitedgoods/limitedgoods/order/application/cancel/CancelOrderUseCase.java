@@ -3,7 +3,7 @@ package com.limitedgoods.limitedgoods.order.application.cancel;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.order.application.cancel.dto.RefundCommand;
-import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderResponse;
 import com.limitedgoods.limitedgoods.payment.exception.PaymentNetworkException;
 import com.limitedgoods.limitedgoods.payment.exception.PaymentRefundDeclinedException;
 import com.limitedgoods.limitedgoods.payment.exception.PaymentTimeoutException;
@@ -18,7 +18,7 @@ public class CancelOrderUseCase {
     private final OrderCancellationService cancellationService;
     private final PaymentService paymentService;
 
-    public OrderResponseDto execute(
+    public OrderResponse execute(
             Long userId,
             Long orderId
     ) {

@@ -5,8 +5,8 @@ import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.order.application.create.dto.OrderStockReservationResult;
 import com.limitedgoods.limitedgoods.order.application.history.OrderStatusHistoryService;
 import com.limitedgoods.limitedgoods.order.application.mapper.OrderResponseMapper;
-import com.limitedgoods.limitedgoods.order.dto.request.OrderItemRequestDto;
-import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.request.OrderItemRequest;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderResponse;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
@@ -41,9 +41,9 @@ public class OrderCreateTransactionService {
 
 
     @Transactional
-    public OrderResponseDto createOrder(
+    public OrderResponse createOrder(
             Long userId,
-            List<OrderItemRequestDto> items,
+            List<OrderItemRequest> items,
             long reservationSeconds,
             String checkoutToken,
             String requestFingerprint
@@ -80,7 +80,7 @@ public class OrderCreateTransactionService {
     }
 
     @Transactional(readOnly = true)
-    public OrderResponseDto findIdempotentOrder(
+    public OrderResponse findIdempotentOrder(
             Long userId,
             String checkoutToken,
             String requestFingerprint

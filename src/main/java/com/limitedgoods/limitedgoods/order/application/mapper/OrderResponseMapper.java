@@ -1,8 +1,8 @@
 package com.limitedgoods.limitedgoods.order.application.mapper;
 
-import com.limitedgoods.limitedgoods.order.dto.response.OrderDetailResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderDetailResponse;
 import com.limitedgoods.limitedgoods.order.dto.response.OrderItemResponse;
-import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderResponse;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import org.springframework.stereotype.Component;
@@ -11,8 +11,8 @@ import java.util.List;
 
 @Component
 public class OrderResponseMapper {
-    public OrderResponseDto toResponse(Order order) {
-        return OrderResponseDto.builder()
+    public OrderResponse toResponse(Order order) {
+        return OrderResponse.builder()
                 .id(order.getId())
                 .userId(order.getUser().getId())
                 .totalPrice(order.getTotalPrice())
@@ -22,7 +22,7 @@ public class OrderResponseMapper {
                 .build();
     }
 
-    public OrderDetailResponseDto toDetailResponse(
+    public OrderDetailResponse toDetailResponse(
             Order order,
             List<OrderItem> orderItems
     ) {
@@ -39,7 +39,7 @@ public class OrderResponseMapper {
                         )
                         .toList();
 
-        return new OrderDetailResponseDto(
+        return new OrderDetailResponse(
                 order.getId(),
                 order.getTotalPrice(),
                 order.getStatus(),

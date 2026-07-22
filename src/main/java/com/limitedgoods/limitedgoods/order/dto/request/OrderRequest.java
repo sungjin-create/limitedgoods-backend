@@ -9,7 +9,7 @@ import lombok.*;
 import java.util.List;
 
 @Builder
-public record OrderRequestDto (
+public record OrderRequest(
 
     @NotBlank
     @Size(max = 255)
@@ -18,7 +18,7 @@ public record OrderRequestDto (
     @NotEmpty
     @Valid
     @Size(max = 50)
-    List<OrderItemRequestDto> items,
+    List<OrderItemRequest> items,
 
     @Size(max = 100)
     String admissionToken

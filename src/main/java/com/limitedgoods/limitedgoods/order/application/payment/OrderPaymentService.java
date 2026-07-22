@@ -10,7 +10,7 @@ import com.limitedgoods.limitedgoods.event.payload.order.OrderPaidItem;
 import com.limitedgoods.limitedgoods.order.application.history.OrderStatusHistoryService;
 import com.limitedgoods.limitedgoods.order.application.mapper.OrderResponseMapper;
 import com.limitedgoods.limitedgoods.order.application.support.OrderAccessService;
-import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderResponse;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
@@ -45,7 +45,7 @@ public class OrderPaymentService {
     }
 
     @Transactional
-    public OrderResponseDto finalizeApprovedPayment(Long userId, Long orderId) {
+    public OrderResponse finalizeApprovedPayment(Long userId, Long orderId) {
 
         Order order = orderAccessService.getOwnedOrderForUpdate(orderId, userId);
 

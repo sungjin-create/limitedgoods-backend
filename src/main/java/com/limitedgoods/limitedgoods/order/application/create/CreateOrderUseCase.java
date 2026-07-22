@@ -3,8 +3,8 @@ package com.limitedgoods.limitedgoods.order.application.create;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.order.application.create.dto.OrderAdmissionClaim;
 import com.limitedgoods.limitedgoods.order.application.create.idempotency.OrderRequestFingerprintGenerator;
-import com.limitedgoods.limitedgoods.order.dto.request.OrderRequestDto;
-import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.request.OrderRequest;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderResponse;
 import com.limitedgoods.limitedgoods.order.policy.OrderProductValidationResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,16 +23,16 @@ public class CreateOrderUseCase {
     private final OrderCreateTransactionService orderCreateTransactionService;
 
 
-    public OrderResponseDto execute(
+    public OrderResponse execute(
             Long userId,
-            OrderRequestDto request
+            OrderRequest request
     ) {
         preconditionChecker.validateRequest(request);
 
         String checkoutToken = request.checkoutToken();
         String requestFingerprint = fingerprintGenerator.generate(request.items());
 
-        OrderResponseDto existing =
+        OrderResponse existing =
                 orderCreateTransactionService.findIdempotentOrder(
                     userId,
                     checkoutToken,
@@ -56,7 +56,7 @@ public class CreateOrderUseCase {
                 );
 
         try {
-            OrderResponseDto order =
+            OrderResponse order =
                     orderCreateTransactionService.createOrder(
                             userId,
                             request.items(),

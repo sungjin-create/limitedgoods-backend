@@ -6,7 +6,7 @@ import lombok.*;
 
 
 @Builder
-public record OrderItemRequestDto(
+public record OrderItemRequest(
 
     @NotNull(message = "상품ID는 필수입니다.")
     @Positive(message = "ID는 양수만 가능합니다.")

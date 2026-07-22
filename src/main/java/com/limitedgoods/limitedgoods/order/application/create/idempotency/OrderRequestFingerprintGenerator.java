@@ -1,6 +1,6 @@
 package com.limitedgoods.limitedgoods.order.application.create.idempotency;
 
-import com.limitedgoods.limitedgoods.order.dto.request.OrderItemRequestDto;
+import com.limitedgoods.limitedgoods.order.dto.request.OrderItemRequest;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -16,14 +16,14 @@ public class OrderRequestFingerprintGenerator {
 
     private static final String VERSION = "v1";
 
-    public String generate(List<OrderItemRequestDto> items) {
-        List<OrderItemRequestDto> sortedItems = new ArrayList<>(items);
+    public String generate(List<OrderItemRequest> items) {
+        List<OrderItemRequest> sortedItems = new ArrayList<>(items);
 
-        sortedItems.sort(Comparator.comparing(OrderItemRequestDto::productId));
+        sortedItems.sort(Comparator.comparing(OrderItemRequest::productId));
 
         String canonicalRequest = VERSION;
 
-        for (OrderItemRequestDto item : sortedItems) {
+        for (OrderItemRequest item : sortedItems) {
             canonicalRequest += "|" + item.productId() + ":" + item.quantity();
         }
 

@@ -3,8 +3,8 @@ package com.limitedgoods.limitedgoods.order.application.query;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.order.application.mapper.OrderResponseMapper;
-import com.limitedgoods.limitedgoods.order.dto.response.OrderDetailResponseDto;
-import com.limitedgoods.limitedgoods.order.dto.response.OrderSummaryResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderDetailResponse;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderSummaryResponse;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.repository.OrderItemRepository;
@@ -24,12 +24,12 @@ public class OrderQueryService {
     private final OrderResponseMapper orderResponseMapper;
 
     @Transactional(readOnly = true)
-    public List<OrderSummaryResponseDto> findMyOrders(Long userId) {
+    public List<OrderSummaryResponse> findMyOrders(Long userId) {
         return orderRepository.findMyOrderSummaries(userId);
     }
 
     @Transactional(readOnly = true)
-    public OrderDetailResponseDto findOrderDetail(
+    public OrderDetailResponse findOrderDetail(
             Long userId,
             Long orderId
     ) {

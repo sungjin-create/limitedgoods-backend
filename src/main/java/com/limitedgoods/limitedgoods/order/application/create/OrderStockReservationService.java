@@ -3,7 +3,7 @@ package com.limitedgoods.limitedgoods.order.application.create;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.order.application.create.dto.OrderStockReservationResult;
-import com.limitedgoods.limitedgoods.order.dto.request.OrderItemRequestDto;
+import com.limitedgoods.limitedgoods.order.dto.request.OrderItemRequest;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
@@ -26,22 +26,22 @@ public class OrderStockReservationService {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public OrderStockReservationResult reserve(
-            List<OrderItemRequestDto> items
+            List<OrderItemRequest> items
     ) {
         long totalPrice = 0L;
 
         List<OrderItem> orderItems = new ArrayList<>();
         Set<Long> productIds = new HashSet<>();
 
-        List<OrderItemRequestDto> sortedItems = items.stream()
+        List<OrderItemRequest> sortedItems = items.stream()
                 .sorted(
                         Comparator.comparing(
-                                OrderItemRequestDto::productId
+                                OrderItemRequest::productId
                         )
                 )
                 .toList();
 
-        for (OrderItemRequestDto item : sortedItems) {
+        for (OrderItemRequest item : sortedItems) {
             Product product = getProduct(item.productId());
 
             decreaseStock(

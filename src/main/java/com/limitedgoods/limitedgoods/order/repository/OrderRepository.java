@@ -1,7 +1,7 @@
 package com.limitedgoods.limitedgoods.order.repository;
 
 import com.limitedgoods.limitedgoods.backoffice.dashboard.dto.BackofficeRecentOrderResponse;
-import com.limitedgoods.limitedgoods.order.dto.response.OrderSummaryResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderSummaryResponse;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import jakarta.persistence.LockModeType;
@@ -72,7 +72,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     where o.user.id = :userId
     order by o.createdAt desc, o.id desc
     """)
-    List<OrderSummaryResponseDto> findMyOrderSummaries(@Param("userId") Long userId);
+    List<OrderSummaryResponse> findMyOrderSummaries(@Param("userId") Long userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
