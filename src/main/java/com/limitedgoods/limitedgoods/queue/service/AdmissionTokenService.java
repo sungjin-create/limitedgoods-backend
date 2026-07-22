@@ -1,6 +1,7 @@
 package com.limitedgoods.limitedgoods.queue.service;
 
 import com.limitedgoods.limitedgoods.queue.dto.QueueAdmissionResult;
+import com.limitedgoods.limitedgoods.queue.infrastructure.redis.QueueRedisKeys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -14,8 +15,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AdmissionTokenService {
 
-    private static final String TOKEN_PREFIX = "admission:token:";
-    private static final String TRACK_PREFIX = "admission:track:";
     private static final Duration TOKEN_TTL = Duration.ofSeconds(300);
 
     private static final RedisScript<Long> CLAIM_SCRIPT = RedisScript.of(
@@ -195,44 +194,6 @@ public class AdmissionTokenService {
 
     private final RedisTemplate<String, String> redisTemplate;
 
-    public String issueToken(
-            Long userId,
-            Long productId
-    ) {
-        String trackKey =
-                trackKey(userId, productId);
-
-        String tokenValue =
-                tokenValue(userId, productId);
-
-        for (int attempt = 0; attempt < 3; attempt++) {
-            String uuid =
-                    UUID.randomUUID().toString();
-
-            String issuedToken =
-                    redisTemplate.execute(
-                            ISSUE_TOKEN_SCRIPT,
-                            List.of(
-                                    trackKey,
-                                    tokenKey(uuid)
-                            ),
-                            tokenValue,
-                            uuid,
-                            String.valueOf(
-                                    TOKEN_TTL.toMillis()
-                            )
-                    );
-
-            if (issuedToken != null) {
-                return issuedToken;
-            }
-        }
-
-        throw new IllegalStateException(
-                "입장 토큰 생성에 실패했습니다."
-        );
-    }
-
     public boolean claim(
             String token,
             Long userId,
@@ -241,7 +202,7 @@ public class AdmissionTokenService {
     ) {
         Long result = redisTemplate.execute(
                 CLAIM_SCRIPT,
-                List.of(tokenKey(token)),
+                List.of(QueueRedisKeys.admissionToken(productId, token)),
                 tokenValue(userId, productId),
                 processingValue(
                         userId,
@@ -262,8 +223,8 @@ public class AdmissionTokenService {
         Long result = redisTemplate.execute(
                 COMPLETE_CONSUMPTION_SCRIPT,
                 List.of(
-                        tokenKey(token),
-                        trackKey(userId, productId)
+                        QueueRedisKeys.admissionToken(productId, token),
+                        QueueRedisKeys.admissionTrack(productId, userId)
                 ),
                 processingValue(
                         userId,
@@ -284,7 +245,7 @@ public class AdmissionTokenService {
     ) {
         Long result = redisTemplate.execute(
                 RELEASE_CLAIM_SCRIPT,
-                List.of(tokenKey(token)),
+                List.of(QueueRedisKeys.admissionToken(productId, token)),
                 processingValue(
                         userId,
                         productId,
@@ -301,11 +262,9 @@ public class AdmissionTokenService {
             Long productId,
             int activeWindow
     ) {
-        String queueKey =
-                queueKey(productId);
+        String queueKey = QueueRedisKeys.waiting(productId);
 
-        String trackKey =
-                trackKey(userId, productId);
+        String trackKey = QueueRedisKeys.admissionTrack(productId, userId);
 
         for (int attempt = 0; attempt < 3; attempt++) {
             String uuid =
@@ -317,23 +276,14 @@ public class AdmissionTokenService {
                             List.of(
                                     queueKey,
                                     trackKey,
-                                    tokenKey(uuid)
+                                    QueueRedisKeys.admissionToken(productId, uuid)
                             ),
-                            String.valueOf(
-                                    System.currentTimeMillis()
-                            ),
+                            String.valueOf(System.currentTimeMillis()),
                             userId.toString(),
-                            tokenValue(
-                                    userId,
-                                    productId
-                            ),
+                            tokenValue(userId, productId),
                             uuid,
-                            String.valueOf(
-                                    TOKEN_TTL.toMillis()
-                            ),
-                            String.valueOf(
-                                    activeWindow
-                            )
+                            String.valueOf(TOKEN_TTL.toMillis()),
+                            String.valueOf(activeWindow)
                     );
 
             if (result == null
@@ -388,20 +338,4 @@ public class AdmissionTokenService {
         return "PROCESSING:" + userId + ":" + productId + ":" + checkoutToken;
     }
 
-    private String tokenKey(String token) {
-        return TOKEN_PREFIX + token;
-    }
-
-    private String trackKey(
-            Long userId,
-            Long productId
-    ) {
-        return TRACK_PREFIX
-                + userId
-                + ":"
-                + productId;
-    }
-    private String queueKey(Long productId) {
-        return "queue:product:" + productId;
-    }
 }

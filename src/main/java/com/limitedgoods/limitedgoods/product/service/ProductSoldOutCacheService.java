@@ -1,5 +1,6 @@
 package com.limitedgoods.limitedgoods.product.service;
 
+import com.limitedgoods.limitedgoods.product.infrastructure.redis.ProductRedisKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -21,7 +22,7 @@ public class ProductSoldOutCacheService {
 
     public boolean isSoldOut(Long productId) {
         try {
-            return redisTemplate.hasKey(KEY_PREFIX + productId);
+            return redisTemplate.hasKey(ProductRedisKeys.soldOut(productId));
         } catch (Exception e) {
             log.warn(
                     "품절 캐시 조회 실패. DB로 요청을 전달합니다. productId={}",
@@ -36,7 +37,7 @@ public class ProductSoldOutCacheService {
     public void markSoldOut(Long productId) {
         try {
             redisTemplate.opsForValue().set(
-                    KEY_PREFIX + productId,
+                    ProductRedisKeys.soldOut(productId),
                     "true",
                     SOLD_OUT_TTL
             );
@@ -60,9 +61,7 @@ public class ProductSoldOutCacheService {
                 new TransactionSynchronization() {
                     @Override
                     public void afterCommit() {
-                        markSoldOut(
-                                productId
-                        );
+                        markSoldOut(productId);
                     }
                 }
         );
@@ -70,7 +69,7 @@ public class ProductSoldOutCacheService {
 
     public void clearSoldOut(Long productId) {
         try {
-            redisTemplate.delete(KEY_PREFIX + productId);
+            redisTemplate.delete(ProductRedisKeys.soldOut(productId));
         } catch (Exception e) {
             log.warn(
                     "품절 캐시 삭제 실패. productId={}",

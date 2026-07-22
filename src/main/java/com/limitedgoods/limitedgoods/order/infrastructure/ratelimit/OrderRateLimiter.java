@@ -1,5 +1,6 @@
 package com.limitedgoods.limitedgoods.order.infrastructure.ratelimit;
 
+import com.limitedgoods.limitedgoods.order.infrastructure.redis.OrderRedisKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -36,7 +37,7 @@ public class OrderRateLimiter {
     private final RedisTemplate<String, String> redisTemplate;
 
     public boolean allow(Long userId, Long productId) {
-        String key = "rate-limit:order:" + userId + ":" + productId;
+        String key = OrderRedisKeys.rateLimit(userId, productId);
 
         try {
             Long result = redisTemplate.execute(

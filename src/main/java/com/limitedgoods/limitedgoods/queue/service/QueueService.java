@@ -5,6 +5,7 @@ import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.queue.dto.QueueAdmissionResult;
 import com.limitedgoods.limitedgoods.product.service.ProductSoldOutCacheService;
 import com.limitedgoods.limitedgoods.queue.dto.QueueStatusResponse;
+import com.limitedgoods.limitedgoods.queue.infrastructure.redis.QueueRedisKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -15,12 +16,11 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class QueueService {
 
-    private static final String QUEUE_PREFIX = "queue:product:";
-    private static final int    ACTIVE_WINDOW = 50;
-
     private final RedisTemplate<String, String> redisTemplate;
     private final ProductSoldOutCacheService productSoldOutCacheService;
     private final AdmissionTokenService admissionTokenService;
+
+    private static final int    ACTIVE_WINDOW = 50;
 
     /**
      * 대기열 진입
@@ -61,7 +61,7 @@ public class QueueService {
      * 호출 시점: 주문 생성 완료, 입장 토큰 TTL 만료
      */
     public void removeFromQueue(Long userId, Long productId) {
-        redisTemplate.opsForZSet().remove(QUEUE_PREFIX + productId, userId.toString());
+        redisTemplate.opsForZSet().remove(QueueRedisKeys.waiting(productId), userId.toString());
         log.info("대기열 제거 userId={}, productId={}", userId, productId);
     }
 
