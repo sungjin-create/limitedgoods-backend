@@ -1,6 +1,6 @@
 package com.limitedgoods.limitedgoods.order.application.payment.dto;
 
-import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderResponse;
 
 public record PaymentStartResult(
         PaymentStartAction action,
@@ -8,6 +8,6 @@ public record PaymentStartResult(
         long amount,
         Long paymentAttemptId,
         String idempotencyKey,
-        OrderResponseDto completedOrder
+        OrderResponse completedOrder
 ) {
 }

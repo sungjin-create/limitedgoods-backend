@@ -2,7 +2,7 @@ package com.limitedgoods.limitedgoods.order.application.payment;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
-import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.TransientDataAccessException;
@@ -23,7 +23,7 @@ public class ApprovedPaymentFinalizer {
             maxAttempts = 3,
             backoff = @Backoff(delay = 1_000)
     )
-    public OrderResponseDto finalizePayment(
+    public OrderResponse finalizePayment(
             Long userId,
             Long orderId
     ) {
@@ -31,7 +31,7 @@ public class ApprovedPaymentFinalizer {
     }
 
     @Recover
-    public OrderResponseDto recover(
+    public OrderResponse recover(
             TransientDataAccessException exception,
             Long userId,
             Long orderId

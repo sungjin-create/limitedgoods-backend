@@ -2,7 +2,7 @@ package com.limitedgoods.limitedgoods.order.policy;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
-import com.limitedgoods.limitedgoods.order.dto.request.OrderItemRequestDto;
+import com.limitedgoods.limitedgoods.order.dto.request.OrderItemRequest;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.entity.ProductType;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
@@ -25,7 +25,7 @@ public class ProductOrderPolicy {
 
     @Transactional(readOnly = true)
     public OrderProductValidationResult validate(
-            List<OrderItemRequestDto> items
+            List<OrderItemRequest> items
     ) {
         Map<Long, Product> productMap = loadProductMap(items);
 
@@ -51,9 +51,9 @@ public class ProductOrderPolicy {
         );
     }
 
-    private Map<Long, Product> loadProductMap(List<OrderItemRequestDto> items) {
+    private Map<Long, Product> loadProductMap(List<OrderItemRequest> items) {
         Set<Long> productIds = items.stream()
-                .map(OrderItemRequestDto::productId)
+                .map(OrderItemRequest::productId)
                 .collect(Collectors.toSet());
 
         return productRepository.findAllById(productIds)
@@ -65,10 +65,10 @@ public class ProductOrderPolicy {
     }
 
     private void validateProductsExist(
-            List<OrderItemRequestDto> items,
+            List<OrderItemRequest> items,
             Map<Long, Product> productMap
     ) {
-        for (OrderItemRequestDto item : items) {
+        for (OrderItemRequest item : items) {
             if (!productMap.containsKey(item.productId())) {
                 throw new BusinessException(
                         ErrorCode.INVALID_PRODUCT_ID
@@ -78,11 +78,11 @@ public class ProductOrderPolicy {
     }
 
     private void validatePurchasableProducts(
-            List<OrderItemRequestDto> items,
+            List<OrderItemRequest> items,
             Map<Long, Product> productMap,
             LocalDateTime now
     ) {
-        for (OrderItemRequestDto item : items) {
+        for (OrderItemRequest item : items) {
             Product product = productMap.get(item.productId());
 
             if (!product.isPurchasableAt(now)) {
@@ -94,12 +94,12 @@ public class ProductOrderPolicy {
     }
 
     private void validateLimitedProductSingleItemOrder(
-            List<OrderItemRequestDto> items,
+            List<OrderItemRequest> items,
             Map<Long, Product> productMap
     ) {
         boolean containsLimited = false;
 
-        for (OrderItemRequestDto item : items) {
+        for (OrderItemRequest item : items) {
             Product product = productMap.get(item.productId());
 
             if (product.getType() == ProductType.LIMITED) {
@@ -115,10 +115,10 @@ public class ProductOrderPolicy {
     }
 
     private void validateMaxPurchaseQuantity(
-            List<OrderItemRequestDto> items,
+            List<OrderItemRequest> items,
             Map<Long, Product> productMap
     ) {
-        for (OrderItemRequestDto item : items) {
+        for (OrderItemRequest item : items) {
             Product product = productMap.get(item.productId());
 
             Integer limit = product.getMaxPurchaseQuantity();

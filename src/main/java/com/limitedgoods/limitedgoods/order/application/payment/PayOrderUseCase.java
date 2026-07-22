@@ -5,7 +5,7 @@ import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.order.application.payment.dto.PaymentStartResult;
 import com.limitedgoods.limitedgoods.order.application.payment.idempotency.OrderPaymentIdempotencyService;
 import com.limitedgoods.limitedgoods.order.application.payment.idempotency.PaymentRequestFingerprintGenerator;
-import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
+import com.limitedgoods.limitedgoods.order.dto.response.OrderResponse;
 import com.limitedgoods.limitedgoods.payment.dto.PaymentLookupResult;
 import com.limitedgoods.limitedgoods.payment.dto.PaymentRequestDto;
 import com.limitedgoods.limitedgoods.payment.dto.PaymentResult;
@@ -33,7 +33,7 @@ public class PayOrderUseCase {
     private static final Pattern IDEMPOTENCY_KEY_PATTERN =
             Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._:-]{7,99}$");
 
-    public OrderResponseDto execute(
+    public OrderResponse execute(
             Long userId,
             Long orderId,
             PaymentRequestDto request,
@@ -41,7 +41,7 @@ public class PayOrderUseCase {
     ) {
         validateIdempotencyKey(idempotencyKey);
 
-        OrderResponseDto cachedResponse =
+        OrderResponse cachedResponse =
                 orderPaymentIdempotencyService.getSavedResponse(
                         userId,
                         orderId,
@@ -72,7 +72,7 @@ public class PayOrderUseCase {
                     );
 
             case FINALIZE_APPROVED -> {
-                OrderResponseDto response =
+                OrderResponse response =
                         paymentFinalizer.finalizePayment(userId, orderId);
 
                 yield completeSuccess(
@@ -84,7 +84,7 @@ public class PayOrderUseCase {
             }
 
             case RECONCILE_PG -> {
-                OrderResponseDto response =
+                OrderResponse response =
                         reconcilePayment(userId, start);
 
                 yield completeSuccess(
@@ -115,11 +115,11 @@ public class PayOrderUseCase {
         }
     }
 
-    private OrderResponseDto completeSuccess(
+    private OrderResponse completeSuccess(
             Long userId,
             Long orderId,
             String idempotencyKey,
-            OrderResponseDto response
+            OrderResponse response
     ) {
         saveResponseBestEffort(
                 userId,
@@ -135,7 +135,7 @@ public class PayOrderUseCase {
             Long userId,
             Long orderId,
             String idempotencyKey,
-            OrderResponseDto response
+            OrderResponse response
     ) {
         try {
             orderPaymentIdempotencyService.saveResponse(
@@ -160,7 +160,7 @@ public class PayOrderUseCase {
     }
 
 
-    private OrderResponseDto reconcilePayment(
+    private OrderResponse reconcilePayment(
             Long userId,
             PaymentStartResult start
     ) {
@@ -218,7 +218,7 @@ public class PayOrderUseCase {
         };
     }
 
-    private OrderResponseDto requestAndCompletePayment(
+    private OrderResponse requestAndCompletePayment(
             Long userId,
             PaymentRequestDto request,
             PaymentStartResult start,
@@ -246,7 +246,7 @@ public class PayOrderUseCase {
                 );
             }
 
-            OrderResponseDto response =
+            OrderResponse response =
                     paymentFinalizer.finalizePayment(
                             userId,
                             start.orderId()
