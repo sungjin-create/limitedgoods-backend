@@ -192,51 +192,24 @@ public class PaymentCommandService {
         return order;
     }
 
-    private void validateAttemptOrder(
-            PaymentAttempt attempt,
-            Long orderId
-    ) {
-        if (!Objects.equals(
-                attempt.getOrder().getId(),
-                orderId
-        )) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_INPUT
-            );
-        }
-    }
-
-    private PaymentAttempt getAttemptForUpdate(
-            Long paymentAttemptId
-    ) {
-        return paymentAttemptRepository
-                .findByIdForUpdate(paymentAttemptId)
-                .orElseThrow(() -> new BusinessException(
-                        ErrorCode.PAYMENT_ATTEMPT_NOT_FOUND
-                ));
-    }
-
-
-    private PaymentStartResult requestPg(Order order, PaymentAttempt attempt) {
+    private PaymentStartResult returnPaid(Order order) {
         return new PaymentStartResult(
-                PaymentStartAction.REQUEST_PG,
+                PaymentStartAction.RETURN_PAID,
                 order.getId(),
                 order.getTotalPrice(),
-                attempt.getId(),
-                attempt.getIdempotencyKey(),
-                null
+                null,
+                null,
+                orderResponseMapper.toResponse(order)
         );
     }
 
-    private PaymentStartResult reconcile(PaymentAttempt attempt) {
-        Order order = attempt.getOrder();
-
+    private PaymentStartResult finalizeApproved(Order order) {
         return new PaymentStartResult(
-                PaymentStartAction.RECONCILE_PG,
+                PaymentStartAction.FINALIZE_APPROVED,
                 order.getId(),
-                attempt.getAmount(),
-                attempt.getId(),
-                attempt.getIdempotencyKey(),
+                order.getTotalPrice(),
+                null,
+                null,
                 null
         );
     }
@@ -255,25 +228,52 @@ public class PaymentCommandService {
         }
     }
 
-    private PaymentStartResult finalizeApproved(Order order) {
+    private PaymentStartResult reconcile(PaymentAttempt attempt) {
+        Order order = attempt.getOrder();
+
         return new PaymentStartResult(
-                PaymentStartAction.FINALIZE_APPROVED,
+                PaymentStartAction.RECONCILE_PG,
                 order.getId(),
-                order.getTotalPrice(),
-                null,
-                null,
+                attempt.getAmount(),
+                attempt.getId(),
+                attempt.getIdempotencyKey(),
                 null
         );
     }
 
-    private PaymentStartResult returnPaid(Order order) {
+    private PaymentStartResult requestPg(Order order, PaymentAttempt attempt) {
         return new PaymentStartResult(
-                PaymentStartAction.RETURN_PAID,
+                PaymentStartAction.REQUEST_PG,
                 order.getId(),
                 order.getTotalPrice(),
-                null,
-                null,
-                orderResponseMapper.toResponse(order)
+                attempt.getId(),
+                attempt.getIdempotencyKey(),
+                null
         );
     }
+
+    private PaymentAttempt getAttemptForUpdate(
+            Long paymentAttemptId
+    ) {
+        return paymentAttemptRepository
+                .findByIdForUpdate(paymentAttemptId)
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.PAYMENT_ATTEMPT_NOT_FOUND
+                ));
+    }
+
+    private void validateAttemptOrder(
+            PaymentAttempt attempt,
+            Long orderId
+    ) {
+        if (!Objects.equals(
+                attempt.getOrder().getId(),
+                orderId
+        )) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT
+            );
+        }
+    }
+
 }
