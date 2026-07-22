@@ -1,4 +1,6 @@
-package com.limitedgoods.limitedgoods.backoffice.product.dto;
+package com.limitedgoods.limitedgoods.backoffice.product.dto.response;
+
+import com.limitedgoods.limitedgoods.backoffice.product.query.ProductOrderSummaryQueryResult;
 
 import java.time.LocalDateTime;
 

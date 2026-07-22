@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.backoffice.product.dto;
+package com.limitedgoods.limitedgoods.backoffice.product.dto.response;
 
 public record ProductSummaryResponse (
         Long totalCount,

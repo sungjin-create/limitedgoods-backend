@@ -1,8 +1,7 @@
 package com.limitedgoods.limitedgoods.backoffice.product.query;
 
-import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductOrderSummaryQueryResult;
-import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductResponse;
-import com.limitedgoods.limitedgoods.backoffice.product.dto.ProductSummaryResponse;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.response.ProductResponse;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.response.ProductSummaryResponse;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,7 +13,7 @@ import java.util.Optional;
 
 public interface BackofficeProductQueryRepository extends JpaRepository<Product, Long> {
     @Query("""
-    select new com.limitedgoods.limitedgoods.backoffice.product.dto.ProductSummaryResponse(
+    select new com.limitedgoods.limitedgoods.backoffice.product.dto.response.ProductSummaryResponse(
         count(p),
         coalesce(sum(case when p.stock > 0 and p.stock <= 5 then 1 else 0 end), 0),
         coalesce(sum(case when p.stock = 0 then 1 else 0 end), 0)
@@ -24,7 +23,7 @@ public interface BackofficeProductQueryRepository extends JpaRepository<Product,
     ProductSummaryResponse findProductSummary();
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.backoffice.product.dto.ProductResponse(
+    select new com.limitedgoods.limitedgoods.backoffice.product.dto.response.ProductResponse(
         p.id,
         p.name,
         p.description,
@@ -44,7 +43,7 @@ public interface BackofficeProductQueryRepository extends JpaRepository<Product,
     List<ProductResponse> findAllProducts();
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.backoffice.product.dto.ProductResponse(
+    select new com.limitedgoods.limitedgoods.backoffice.product.dto.response.ProductResponse(
         p.id,
         p.name,
         p.description,
@@ -65,7 +64,7 @@ public interface BackofficeProductQueryRepository extends JpaRepository<Product,
     List<ProductResponse> findAllProductsByStatus(ProductStatus status);
 
     @Query("""
-    select new com.limitedgoods.limitedgoods.backoffice.product.dto.ProductOrderSummaryQueryResult(
+    select new com.limitedgoods.limitedgoods.backoffice.product.query.ProductOrderSummaryQueryResult(
         p.stock,
         coalesce(
             sum(

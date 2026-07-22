@@ -1,6 +1,5 @@
-package com.limitedgoods.limitedgoods.backoffice.product.dto;
+package com.limitedgoods.limitedgoods.backoffice.product.dto.request;
 
-import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;

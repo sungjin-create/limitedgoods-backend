@@ -1,6 +1,11 @@
 package com.limitedgoods.limitedgoods.backoffice.product.controller;
 
-import com.limitedgoods.limitedgoods.backoffice.product.dto.*;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.request.ProductRegisterRequest;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.request.ProductUpdateRequest;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.request.StockAdjustmentRequest;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.response.ProductListResponse;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.response.ProductResponse;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.response.ProductStockOverViewResponse;
 import com.limitedgoods.limitedgoods.backoffice.product.service.BackofficeProductService;
 import com.limitedgoods.limitedgoods.common.response.ApiResponse;
 import com.limitedgoods.limitedgoods.product.entity.ProductStatus;

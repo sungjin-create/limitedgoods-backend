@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.backoffice.product.dto;
+package com.limitedgoods.limitedgoods.backoffice.product.dto.response;
 
 import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
 import com.limitedgoods.limitedgoods.product.entity.ProductType;

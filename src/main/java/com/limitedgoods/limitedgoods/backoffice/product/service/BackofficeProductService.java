@@ -1,12 +1,21 @@
 package com.limitedgoods.limitedgoods.backoffice.product.service;
 
-import com.limitedgoods.limitedgoods.backoffice.product.dto.*;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.request.ProductRegisterRequest;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.request.ProductUpdateRequest;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.request.StockAdjustmentRequest;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.response.ProductListResponse;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.response.ProductResponse;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.response.ProductStockOverViewResponse;
+import com.limitedgoods.limitedgoods.backoffice.product.dto.response.ProductSummaryResponse;
 import com.limitedgoods.limitedgoods.backoffice.product.query.BackofficeProductQueryRepository;
+import com.limitedgoods.limitedgoods.backoffice.product.query.ProductOrderSummaryQueryResult;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
+import com.limitedgoods.limitedgoods.order.policy.ProductOrderPolicy;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
 import com.limitedgoods.limitedgoods.product.entity.ProductType;
+import com.limitedgoods.limitedgoods.product.policy.ProductStatusPolicy;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,17 +35,7 @@ public class BackofficeProductService {
 
     private final ProductRepository productRepository;
     private final BackofficeProductQueryRepository backofficeProductQueryRepository;
-
-    private static final Map<ProductStatus, Set<ProductStatus>> ALLOWED_TRANSITIONS =
-            Map.of(
-                    DRAFT, EnumSet.of(PREPARING, SCHEDULED, ACTIVE),
-                    PREPARING, EnumSet.of(SCHEDULED, ACTIVE, PAUSED, HIDDEN, ARCHIVED),
-                    SCHEDULED, EnumSet.of(ACTIVE, PAUSED, HIDDEN, ARCHIVED),
-                    ACTIVE, EnumSet.of(PAUSED, HIDDEN, ARCHIVED),
-                    PAUSED, EnumSet.of(PREPARING, SCHEDULED, ACTIVE, ARCHIVED),
-                    HIDDEN, EnumSet.of(PREPARING, SCHEDULED, ACTIVE, ARCHIVED),
-                    ARCHIVED, EnumSet.noneOf(ProductStatus.class)
-            );
+    private final ProductStatusPolicy productStatusPolicy;
 
     @Transactional
     public ProductListResponse findBackofficeProductList(ProductStatus status) {
@@ -70,9 +69,9 @@ public class BackofficeProductService {
         LocalDateTime saleEndAt = productRegisterRequest.getSaleEndAt();
 
         //상품 등록시 가능한 상태검사
-        validateStatusForRegister(status);
+        productStatusPolicy.validateRegisterStatus(status);
         //판매 시작, 판매 끝 값 검사
-        validateSaleScheduleForStatus(status, saleStartAt, saleEndAt);
+        productStatusPolicy.validateSaleSchedule(status, saleStartAt, saleEndAt);
 
         Product product = new Product();
         product.setName(name);
@@ -109,10 +108,10 @@ public class BackofficeProductService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
 
         //상태변경 검사
-        validateStatusTransition(currentProduct.getStatus(), nextStatus);
+        productStatusPolicy.validateTransition(currentProduct.getStatus(), nextStatus);
 
         //상태에 따른 일정 변경 검사
-        validateSaleScheduleForStatus(nextStatus, nextSaleStartAt, nextSaleEndAt);
+        productStatusPolicy.validateSaleSchedule(nextStatus, nextSaleStartAt, nextSaleEndAt);
 
         currentProduct.setName(nextName);
         currentProduct.setDescription(nextDescription);
@@ -170,10 +169,6 @@ public class BackofficeProductService {
         return ProductStockOverViewResponse.from(queryResult);
     }
 
-    @Transactional
-    public int updateScheduledToActive(){
-        return productRepository.activateProductsReadyForSale(ACTIVE, SCHEDULED);
-    }
 
     private ProductResponse toResponse(Product product) {
         return ProductResponse.builder()
@@ -190,51 +185,6 @@ public class BackofficeProductService {
                 .saleStartAt(product.getSaleStartAt())
                 .saleEndAt(product.getSaleEndAt())
                 .build();
-    }
-
-    private void validateStatusTransition(ProductStatus currentStatus, ProductStatus nextStatus) {
-        if (currentStatus == nextStatus) {
-            return; // 일정만 수정하는 경우
-        }
-
-        Set<ProductStatus> allowed = ALLOWED_TRANSITIONS.get(currentStatus);
-
-        if (allowed == null || !allowed.contains(nextStatus)) {
-            throw new BusinessException(ErrorCode.INVALID_PRODUCT_STATUS_TRANSITION);
-        }
-    }
-
-    private void validateSaleScheduleForStatus(
-            ProductStatus nextStatus,
-            LocalDateTime saleStartAt,
-            LocalDateTime saleEndAt
-    ) {
-        if (saleStartAt != null && saleEndAt != null
-                && !saleStartAt.isBefore(saleEndAt)) {
-            throw new BusinessException(ErrorCode.INVALID_PRODUCT_TIME);
-        }
-
-        if (nextStatus == ProductStatus.SCHEDULED) {
-            if (saleStartAt == null || saleEndAt == null) {
-                throw new BusinessException(ErrorCode.HAS_NO_SALE_TIME);
-            }
-
-            if (!saleStartAt.isAfter(LocalDateTime.now())) {
-                throw new BusinessException(ErrorCode.SALE_START_MUST_BE_FUTURE);
-            }
-        }
-
-        if (nextStatus == ProductStatus.ACTIVE
-                && saleEndAt != null
-                && !saleEndAt.isAfter(LocalDateTime.now())) {
-            throw new BusinessException(ErrorCode.SALE_ALREADY_ENDED);
-        }
-    }
-
-    private void validateStatusForRegister(ProductStatus status) {
-        if(status != DRAFT && status != PREPARING && status != SCHEDULED && status != ACTIVE) {
-            throw new BusinessException(ErrorCode.INVALID_PRODUCT_STATUS_REGISTER);
-        }
     }
 
 }
