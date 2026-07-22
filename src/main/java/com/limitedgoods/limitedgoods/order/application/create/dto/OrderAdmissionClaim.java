@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.order.application.create;
+package com.limitedgoods.limitedgoods.order.application.create.dto;
 
 public record OrderAdmissionClaim(
         String admissionToken,

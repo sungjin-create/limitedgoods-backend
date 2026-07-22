@@ -1,6 +1,7 @@
 package com.limitedgoods.limitedgoods.order.application.create;
 
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
+import com.limitedgoods.limitedgoods.order.application.create.dto.OrderAdmissionClaim;
 import com.limitedgoods.limitedgoods.order.application.create.idempotency.OrderRequestFingerprintGenerator;
 import com.limitedgoods.limitedgoods.order.dto.request.OrderRequestDto;
 import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
