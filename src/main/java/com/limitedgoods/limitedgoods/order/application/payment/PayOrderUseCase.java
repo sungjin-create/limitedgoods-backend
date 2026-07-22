@@ -1,6 +1,5 @@
 package com.limitedgoods.limitedgoods.order.application.payment;
 
-import com.limitedgoods.limitedgoods.cart.service.CartService;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.order.application.payment.dto.PaymentStartResult;
@@ -30,7 +29,6 @@ public class PayOrderUseCase {
     private final PaymentCommandService paymentCommandService;
     private final PaymentService paymentService;
     private final OrderPaymentIdempotencyService orderPaymentIdempotencyService;
-    private final CartService cartService;
 
     private static final Pattern IDEMPOTENCY_KEY_PATTERN =
             Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._:-]{7,99}$");

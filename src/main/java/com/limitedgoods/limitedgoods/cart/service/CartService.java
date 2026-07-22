@@ -86,7 +86,7 @@ public class CartService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        Cart cart = cartRepository.findByUser(user)
+        cartRepository.findByUser(user)
                 .orElseGet(()->createCart(user));
 
         CartItem cartItem = cartItemRepository.findById(cartItemId)
@@ -100,7 +100,7 @@ public class CartService {
         }
 
         int price = product.getPrice();
-        int totalPrice = price * quantity;
+        long totalPrice = Math.multiplyExact((long)price, quantity);
 
         cartItem.updateQuantityAndPrice(quantity, price, totalPrice);
     }
@@ -121,13 +121,15 @@ public class CartService {
     }
 
     @Transactional
-    public void clearCart(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    public void removeOrderedItemList(
+            Long userId,
+            List<Long> productIdList
+    ) {
+        if (productIdList == null || productIdList.isEmpty()) {
+            return;
+        }
 
-        cartRepository.findByUser(user).ifPresent(cart ->
-                cartItemRepository.deleteAll(cartItemRepository.findCartItemByCart(cart))
-        );
+        cartItemRepository.deleteByUserIdAndProductIdIn(userId, productIdList);
     }
 
     private Cart createCart(User user){

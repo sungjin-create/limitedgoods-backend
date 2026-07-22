@@ -1,11 +1,13 @@
 package com.limitedgoods.limitedgoods.order.application.payment;
 
+import com.limitedgoods.limitedgoods.cart.service.CartService;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEventType;
 import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventService;
 import com.limitedgoods.limitedgoods.event.payload.order.OrderPaidEvent;
 import com.limitedgoods.limitedgoods.event.payload.order.OrderPaidItem;
+import com.limitedgoods.limitedgoods.order.application.history.OrderStatusHistoryService;
 import com.limitedgoods.limitedgoods.order.application.mapper.OrderResponseMapper;
 import com.limitedgoods.limitedgoods.order.dto.response.OrderResponseDto;
 import com.limitedgoods.limitedgoods.order.entity.Order;
@@ -31,30 +33,13 @@ public class OrderPaymentService {
     private final OutboxEventService outboxEventService;
     private final OrderItemRepository orderItemRepository;
     private final OrderResponseMapper orderResponseMapper;
+    private final CartService cartService;
+    private final OrderStatusHistoryService historyService;
 
     @Transactional(readOnly = true)
     public OrderPaymentInfo getPaymentInfo(Long userId, Long orderId) {
         Order order = getOrder(orderId, userId);
         return new OrderPaymentInfo(order.getId(), order.getTotalPrice(), order.getStatus());
-    }
-
-    @Transactional
-    public OrderPaymentInfo startPayment(Long userId, Long orderId) {
-        Order order = getOrderForUpdate(orderId, userId);
-        order.markPaymentPending(LocalDateTime.now());
-        return new OrderPaymentInfo(order.getId(), order.getTotalPrice(), order.getStatus());
-    }
-
-    @Transactional
-    public void markPaymentApproved(Long userId, Long orderId) {
-        Order order = getOrderForUpdate(orderId, userId);
-
-        if (order.getStatus() == OrderStatus.PAYMENT_APPROVED
-                || order.getStatus() == OrderStatus.PAID) {
-            return;
-        }
-
-        order.markPaymentApproved();
     }
 
     @Transactional
@@ -70,10 +55,33 @@ public class OrderPaymentService {
             throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS, "현재 주문 상태 = " + order.getStatus());
         }
 
+        List<OrderItem> orderItemList =
+                orderItemRepository.findByOrderId(orderId);
+        if (orderItemList.isEmpty()) {
+            throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
+        }
+
+        OrderStatus previousStatus = order.getStatus();
+
         order.markPaid();
 
         //product의 soldOut 재고 갯수 업데이트
-        updateProductSoldCount(userId, orderId);
+        updateProductSoldCount(orderItemList);
+
+        List<Long> orderedProductIdList = orderItemList.stream()
+                .map(item -> item.getProduct().getId())
+                .distinct()
+                .toList();
+
+        cartService.removeOrderedItemList(userId, orderedProductIdList);
+
+        historyService.record(
+                order,
+                previousStatus,
+                OrderStatus.PAID,
+                "결제 내부 확정 완료",
+                order.getUser()
+        );
 
         outboxEventService.save(
                 OutboxEventType.ORDER_PAID,
@@ -98,12 +106,6 @@ public class OrderPaymentService {
         return orderResponseMapper.toResponse(order);
     }
 
-    @Transactional
-    public void failPayment(Long userId, Long orderId, String reason) {
-        Order order = getOrder(orderId, userId);
-        order.markPaymentFailed(reason);
-    }
-
     private Order getOrder(Long orderId, Long userId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
@@ -126,8 +128,7 @@ public class OrderPaymentService {
         return order;
     }
 
-    private void updateProductSoldCount(Long userId, Long orderId) {
-        List<OrderItem> orderItemList = orderRepository.findOrderItemsByOrder(orderId, userId);
+    private void updateProductSoldCount(List<OrderItem> orderItemList) {
 
         for(OrderItem orderItem : orderItemList) {
             productRepository.increaseSoldCount(
