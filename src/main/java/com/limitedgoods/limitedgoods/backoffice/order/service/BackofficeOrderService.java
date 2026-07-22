@@ -1,7 +1,7 @@
 package com.limitedgoods.limitedgoods.backoffice.order.service;
 
-import com.limitedgoods.limitedgoods.backoffice.monitoring.query.BackofficeMonitoringQueryRepository;
 import com.limitedgoods.limitedgoods.backoffice.order.dto.*;
+import com.limitedgoods.limitedgoods.backoffice.order.query.BackofficeOrderQueryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,55 +15,48 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class BackofficeOrderService {
 
-    private final BackofficeMonitoringQueryRepository monitoringQueryRepository;
+    private final BackofficeOrderQueryRepository orderQueryRepository;
 
-    public BackofficeMonitoringResponse getBackofficeMonitoring(LocalDateTime startAt, LocalDateTime endAt){
-        BackofficeMonitoringSummaryResponse getSummary;
+    public OrdersResponse findBackofficeOrders(LocalDateTime startAt, LocalDateTime endAt){
+        OrderSummaryResponse summary;
         if (startAt == null || endAt == null) {
-            getSummary =  monitoringQueryRepository.getBackofficeMonitoringSummary();
+            summary =  orderQueryRepository.getBackofficeOrderSummary();
         }  else {
-            getSummary = monitoringQueryRepository.getBackofficeMonitoringSummary(startAt, endAt);
+            summary = orderQueryRepository.getBackofficeOrderSummary(startAt, endAt);
         }
 
-        BackofficeMonitoringSummaryResponse summary = BackofficeMonitoringSummaryResponse.builder()
-                .paymentPendingCount(getSummary.getPaymentPendingCount())
-                .paidCount(getSummary.getPaidCount())
-                .cancelRequestedCount(getSummary.getCancelRequestedCount())
-                .paymentFailedCount(getSummary.getPaymentFailedCount())
-                .build();
-
-
-
-        List<BackofficeMonitoringOrderFlatResponse> ordersFlatResponseList;
+        List<OrderFlatResponse> ordersFlatResponseList;
         if (startAt == null || endAt == null) {
-            ordersFlatResponseList =  monitoringQueryRepository.findBackofficeMonitoringOrderFlat();
+            ordersFlatResponseList =  orderQueryRepository.findBackofficeOrdersFlat();
         }  else {
-            ordersFlatResponseList = monitoringQueryRepository.findBackofficeMonitoringOrderFlat(startAt, endAt);
+            ordersFlatResponseList = orderQueryRepository.findBackofficeOrdersFlat(startAt, endAt);
         }
 
-        Map<Long, BackofficeMonitoringOrdersResponse> monitoringOrderMap = new LinkedHashMap<>();
-        for(BackofficeMonitoringOrderFlatResponse flat: ordersFlatResponseList) {
-            BackofficeMonitoringOrdersResponse monitoringOrdersResponse =
-                    monitoringOrderMap.computeIfAbsent(flat.getOrderId(), id -> BackofficeMonitoringOrdersResponse.builder()
-                            .orderId(flat.getOrderId())
-                            .userEmail(flat.getEmail())
-                            .totalPrice(flat.getTotalPrice())
-                            .status(flat.getStatus().toString())
-                            .createdAt(flat.getCreatedAt())
-                            .orderItems(new ArrayList<>())
-                            .build());
+        Map<Long, OrderResponse> orderResponseMap = new LinkedHashMap<>();
+        for(OrderFlatResponse flat: ordersFlatResponseList) {
+            OrderResponse orderResponse =
+                    orderResponseMap.computeIfAbsent(flat.orderId(), id ->
+                            new OrderResponse(
+                                    flat.orderId(),
+                                    flat.email(),
+                                    flat.totalPrice(),
+                                    flat.status(),
+                                    new ArrayList<>(),
+                                    flat.createdAt())
+                    );
 
-            monitoringOrdersResponse.getOrderItems().add(BackofficeMonitoringOrderItemResponse.builder()
-                            .productId(flat.getProductId())
-                            .productName(flat.getProductName())
-                            .quantity(flat.getQuantity())
-                            .price(flat.getPrice())
-                            .build());
+            orderResponse.orderItems().add(
+                    new OrderItemResponse(
+                            flat.productId(),
+                            flat.productName(),
+                            flat.quantity(),
+                            flat.price()
+                    ));
         }
 
-        return BackofficeMonitoringResponse.builder()
+        return OrdersResponse.builder()
                 .summary(summary)
-                .orders(new ArrayList<>(monitoringOrderMap.values()))
+                .orders(new ArrayList<>(orderResponseMap.values()))
                 .build();
     }
 }

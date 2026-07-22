@@ -1,6 +1,6 @@
 package com.limitedgoods.limitedgoods.backoffice.order.controller;
 
-import com.limitedgoods.limitedgoods.backoffice.order.dto.BackofficeMonitoringResponse;
+import com.limitedgoods.limitedgoods.backoffice.order.dto.OrdersResponse;
 import com.limitedgoods.limitedgoods.backoffice.order.service.BackofficeOrderService;
 import com.limitedgoods.limitedgoods.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ public class BackofficeOrderController {
     private final BackofficeOrderService backofficeOrderService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<BackofficeMonitoringResponse>> getBackofficeMonitoring(
+    public ResponseEntity<ApiResponse<OrdersResponse>> findBackofficeOrders(
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
             LocalDateTime startAt,
@@ -30,7 +30,7 @@ public class BackofficeOrderController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
             LocalDateTime endAt
     ){
-        return ResponseEntity.ok(ApiResponse.success(backofficeOrderService.getBackofficeMonitoring(startAt, endAt)));
+        return ResponseEntity.ok(ApiResponse.success(backofficeOrderService.findBackofficeOrders(startAt, endAt)));
     }
 
 }

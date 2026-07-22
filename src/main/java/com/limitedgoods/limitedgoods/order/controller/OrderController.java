@@ -82,11 +82,7 @@ public class OrderController {
             @PathVariable Long orderId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        OrderResponseDto response =
-                cancelOrderUseCase.execute(
-                        userDetails.getUserId(),
-                        orderId
-                );
+        OrderResponseDto response = cancelOrderUseCase.execute(userDetails.getUserId(),orderId);
 
         return ResponseEntity.ok(
                 ApiResponse.success(response)
@@ -98,11 +94,7 @@ public class OrderController {
             @PathVariable Long orderId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        OrderResponseDto response =
-                cancelOrderUseCase.execute(
-                        userDetails.getUserId(),
-                        orderId
-                );
+        OrderResponseDto response = cancelOrderUseCase.execute(userDetails.getUserId(), orderId);
 
         return ResponseEntity.ok(
                 ApiResponse.success(response)

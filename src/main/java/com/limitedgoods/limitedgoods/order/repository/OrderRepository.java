@@ -1,12 +1,8 @@
 package com.limitedgoods.limitedgoods.order.repository;
 
 import com.limitedgoods.limitedgoods.backoffice.dashboard.dto.BackofficeRecentOrderResponse;
-import com.limitedgoods.limitedgoods.backoffice.order.dto.BackofficeMonitoringOrderFlatResponse;
-import com.limitedgoods.limitedgoods.backoffice.order.dto.BackofficeMonitoringSummaryResponse;
-import com.limitedgoods.limitedgoods.order.dto.response.OrderDetailResponseDto;
 import com.limitedgoods.limitedgoods.order.dto.response.OrderSummaryResponseDto;
 import com.limitedgoods.limitedgoods.order.entity.Order;
-import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;

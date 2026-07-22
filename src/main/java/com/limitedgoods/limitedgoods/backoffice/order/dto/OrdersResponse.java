@@ -9,9 +9,9 @@ import java.util.List;
 @Getter
 @Setter
 @Builder
-public class BackofficeMonitoringResponse {
+public class OrdersResponse {
 
-    private BackofficeMonitoringSummaryResponse summary;
-    private List<BackofficeMonitoringOrdersResponse> orders;
+    private OrderSummaryResponse summary;
+    private List<OrderResponse> orders;
 
 }
