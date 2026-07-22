@@ -2,16 +2,34 @@ package com.limitedgoods.limitedgoods.queue.infrastructure.redis;
 
 import com.limitedgoods.limitedgoods.common.infrastructure.redis.RedisKeyNamespace;
 
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public final class QueueRedisKeys {
 
     private static final String PREFIX =
             RedisKeyNamespace.ROOT + ":queue";
 
+    private static final Pattern
+            ADMISSION_TRACK_KEY_PATTERN =
+            Pattern.compile(
+                    "^"
+                            + Pattern.quote(PREFIX)
+                            + ":\\{(\\d+)\\}"
+                            + ":admission:track:"
+                            + "(\\d+)"
+                            + "$"
+            );
+
     private QueueRedisKeys() {
     }
 
     public static String waiting(Long productId) {
-        return PREFIX + ":{" + productId + "}:waiting";
+        return PREFIX
+                + ":{"
+                + productId
+                + "}:waiting";
     }
 
     public static String admissionTrack(
@@ -19,7 +37,9 @@ public final class QueueRedisKeys {
             Long userId
     ) {
         return PREFIX
-                + ":{" + productId + "}"
+                + ":{"
+                + productId
+                + "}"
                 + ":admission:track:"
                 + userId;
     }
@@ -29,12 +49,47 @@ public final class QueueRedisKeys {
             String token
     ) {
         return PREFIX
-                + ":{" + productId + "}"
+                + ":{"
+                + productId
+                + "}"
                 + ":admission:token:"
                 + token;
     }
 
-    public static String admissionTrackPrefix() {
-        return PREFIX + ":";
+    public static Optional<AdmissionTrackKey> parseAdmissionTrackKey(String key) {
+
+        if (key == null || key.isBlank()) {
+            return Optional.empty();
+        }
+
+        Matcher matcher =
+                ADMISSION_TRACK_KEY_PATTERN.matcher(key);
+
+        if (!matcher.matches()) {
+            return Optional.empty();
+        }
+
+        try {
+            Long productId =
+                    Long.parseLong(matcher.group(1));
+
+            Long userId =
+                    Long.parseLong(matcher.group(2));
+
+            return Optional.of(
+                    new AdmissionTrackKey(
+                            productId,
+                            userId
+                    )
+            );
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
+    }
+
+    public record AdmissionTrackKey(
+            Long productId,
+            Long userId
+    ) {
     }
 }
