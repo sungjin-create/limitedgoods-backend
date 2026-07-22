@@ -35,12 +35,12 @@ public class CartItem {
 
     private int quantity;
     private int price;
-    private int totalPrice;
+    private long totalPrice;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public void updateQuantityAndPrice(int quantity, int price, int totalPrice){
+    public void updateQuantityAndPrice(int quantity, int price, long totalPrice){
         this.quantity = quantity;
         this.price = price;
         this.totalPrice = totalPrice;
