@@ -120,6 +120,51 @@ public class PayOrderUseCase {
         }
     }
 
+    private OrderResponseDto completeSuccess(
+            Long userId,
+            Long orderId,
+            String idempotencyKey,
+            OrderResponseDto response
+    ) {
+        saveResponseBestEffort(
+                userId,
+                orderId,
+                idempotencyKey,
+                response
+        );
+
+        return response;
+    }
+
+    private void saveResponseBestEffort(
+            Long userId,
+            Long orderId,
+            String idempotencyKey,
+            OrderResponseDto response
+    ) {
+        try {
+            orderPaymentIdempotencyService.saveResponse(
+                    userId,
+                    orderId,
+                    idempotencyKey,
+                    response
+            );
+        } catch (Exception exception) {
+            /*
+             * DB 주문 상태는 이미 PAID다.
+             * Redis 응답 저장 실패가 결제 성공을 실패 응답으로
+             * 바꾸지 않도록 예외를 격리한다.
+             */
+            log.error(
+                    "[결제 멱등 응답 저장 실패] userId={}, orderId={}",
+                    userId,
+                    orderId,
+                    exception
+            );
+        }
+    }
+
+
     private OrderResponseDto reconcilePayment(
             Long userId,
             PaymentStartResult start
@@ -176,66 +221,6 @@ public class PayOrderUseCase {
                 );
             }
         };
-    }
-
-    private OrderResponseDto completeSuccess(
-            Long userId,
-            Long orderId,
-            String idempotencyKey,
-            OrderResponseDto response
-    ) {
-        saveResponseBestEffort(
-                userId,
-                orderId,
-                idempotencyKey,
-                response
-        );
-
-        return response;
-    }
-
-    private void saveResponseBestEffort(
-            Long userId,
-            Long orderId,
-            String idempotencyKey,
-            OrderResponseDto response
-    ) {
-        try {
-            orderPaymentIdempotencyService.saveResponse(
-                    userId,
-                    orderId,
-                    idempotencyKey,
-                    response
-            );
-        } catch (Exception exception) {
-            /*
-             * DB 주문 상태는 이미 PAID다.
-             * Redis 응답 저장 실패가 결제 성공을 실패 응답으로
-             * 바꾸지 않도록 예외를 격리한다.
-             */
-            log.error(
-                    "[결제 멱등 응답 저장 실패] userId={}, orderId={}",
-                    userId,
-                    orderId,
-                    exception
-            );
-        }
-    }
-
-    private void clearCartBestEffort(
-            Long userId,
-            Long orderId
-    ) {
-        try {
-            cartService.clearCart(userId);
-        } catch (Exception exception) {
-            log.warn(
-                    "[결제 후 장바구니 정리 실패] userId={}, orderId={}",
-                    userId,
-                    orderId,
-                    exception
-            );
-        }
     }
 
     private OrderResponseDto requestAndCompletePayment(
