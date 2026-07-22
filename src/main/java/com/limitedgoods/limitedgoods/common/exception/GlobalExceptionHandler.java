@@ -20,10 +20,11 @@ public class GlobalExceptionHandler {
 
         log.warn(
                 "event=business_exception component=application " +
-                        "method={} path={} errorCode={}",
+                        "method={} path={} errorCode={} message={}",
                 request.getMethod(),
                 request.getRequestURI(),
-                errorCode.getCode()
+                errorCode.getCode(),
+                e.getMessage()
         );
 
         return ResponseEntity
@@ -31,7 +32,7 @@ public class GlobalExceptionHandler {
                 .body(
                         ApiResponse.fail(
                                 errorCode.getCode(),
-                                errorCode.getMessage()
+                                e.getMessage()
                         )
                 );
     }

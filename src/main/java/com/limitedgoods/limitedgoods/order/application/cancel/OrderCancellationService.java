@@ -79,7 +79,7 @@ public class OrderCancellationService {
 
         } else {
             throw new BusinessException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED,
-                    "현재 STATUS = " + previousStatus);
+                    "현재 주문 STATUS = " + previousStatus);
         }
 
         PaymentAttempt paymentAttempt = getApprovedPaymentAttempt(orderId);
