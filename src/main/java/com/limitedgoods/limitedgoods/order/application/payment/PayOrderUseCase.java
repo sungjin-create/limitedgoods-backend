@@ -73,10 +73,7 @@ public class PayOrderUseCase {
 
             case FINALIZE_APPROVED -> {
                 OrderResponseDto response =
-                        paymentFinalizer.finalizePayment(
-                                userId,
-                                orderId
-                        );
+                        paymentFinalizer.finalizePayment(userId, orderId);
 
                 yield completeSuccess(
                         userId,

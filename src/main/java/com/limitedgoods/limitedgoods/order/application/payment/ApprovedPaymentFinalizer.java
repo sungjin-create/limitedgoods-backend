@@ -27,10 +27,7 @@ public class ApprovedPaymentFinalizer {
             Long userId,
             Long orderId
     ) {
-        return orderPaymentService.finalizeApprovedPayment(
-                userId,
-                orderId
-        );
+        return orderPaymentService.finalizeApprovedPayment(userId, orderId);
     }
 
     @Recover
@@ -46,8 +43,6 @@ public class ApprovedPaymentFinalizer {
                 exception
         );
 
-        throw new BusinessException(
-                ErrorCode.PAYMENT_FINALIZATION_FAILED
-        );
+        throw new BusinessException(ErrorCode.PAYMENT_FINALIZATION_FAILED);
     }
 }

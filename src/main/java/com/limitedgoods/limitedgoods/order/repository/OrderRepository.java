@@ -185,15 +185,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<BackofficeRecentOrderResponse> findRecentOrders(Pageable pageable);
 
     @Query("""
-    select oi
-    from OrderItem oi
-    join oi.order o
-    where o.id = :orderId
-        and o.user.id = :userId
-    """)
-    List<OrderItem> findOrderItemsByOrder(Long orderId, Long userId);
-
-    @Query("""
     select o
     from Order o
     where o.user.id = :userId
@@ -202,5 +193,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByUserIdAndCheckoutToken(
             @Param("userId") Long userId,
             @Param("checkoutToken") String checkoutToken
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+    select o
+    from Order o
+    join fetch o.user
+    where o.id = :orderId
+    """)
+    Optional<Order> findByIdForExpirationUpdate(
+            @Param("orderId") Long orderId
     );
 }

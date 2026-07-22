@@ -173,7 +173,15 @@ public class OrderCreateTransactionService {
                 productSoldOutCacheService.clearSoldOutAfterCommit(item.getProduct().getId());
             }
 
-            order.markExpired();
+            order.markExpired(LocalDateTime.now());
+
+            historyService.record(
+                    order,
+                    order.getStatus(),
+                    OrderStatus.EXPIRED,
+                    "새로운 주문 생성으로 이전 주문 만료처리",
+                    order.getUser()
+            );
         }
     }
 

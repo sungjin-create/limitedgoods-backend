@@ -85,14 +85,14 @@ public class Order {
         this.failedAt = null;
     }
 
-    public void markExpired() {
+    public void markExpired(LocalDateTime now) {
         if (this.status != OrderStatus.CREATED
                 && this.status != OrderStatus.PAYMENT_FAILED) {
             throw new BusinessException(ErrorCode.INVALID_ORDER_STATUS, "현재 주문 상태 = " + this.status);
         }
 
         this.status = OrderStatus.EXPIRED;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = now;
     }
 
     public void markPaid() {
