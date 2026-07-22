@@ -1,15 +1,15 @@
 package com.limitedgoods.limitedgoods.backoffice.order.controller;
 
+import com.limitedgoods.limitedgoods.backoffice.order.dto.OrderStatusResponse;
 import com.limitedgoods.limitedgoods.backoffice.order.dto.OrdersResponse;
 import com.limitedgoods.limitedgoods.backoffice.order.service.BackofficeOrderService;
 import com.limitedgoods.limitedgoods.common.response.ApiResponse;
+import com.limitedgoods.limitedgoods.security.user.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 
@@ -31,6 +31,15 @@ public class BackofficeOrderController {
             LocalDateTime endAt
     ){
         return ResponseEntity.ok(ApiResponse.success(backofficeOrderService.findBackofficeOrders(startAt, endAt)));
+    }
+
+    @PatchMapping("/{orderId}/complete")
+    public ResponseEntity<ApiResponse<OrderStatusResponse>> completeOrder(
+            @PathVariable("orderId") Long orderId,
+            @AuthenticationPrincipal CustomUserDetails userDetails){
+        return ResponseEntity.ok(ApiResponse.success(
+                backofficeOrderService.completeOrder(
+                        userDetails.getUserId(), orderId)));
     }
 
 }
