@@ -152,6 +152,41 @@ public enum ErrorCode {
             "PAYMENT_005",
             "결제 승인은 완료됐지만 주문 확정이 지연되고 있습니다."
     ),
+    PAYMENT_PROCESSING(
+            HttpStatus.ACCEPTED,
+            "PAYMENT_006",
+            "결제 결과를 확인하고 있습니다."
+    ),
+    PAYMENT_RESULT_UNKNOWN(
+            HttpStatus.ACCEPTED,
+            "PAYMENT_007",
+            "결제 결과를 확인하고 있습니다."
+    ),
+    PAYMENT_AMOUNT_MISMATCH(
+            HttpStatus.CONFLICT,
+            "PAYMENT_008",
+            "승인 금액이 주문 금액과 일치하지 않습니다."
+    ),
+    PAYMENT_IDEMPOTENCY_KEY_REUSED(
+            HttpStatus.CONFLICT,
+            "PAYMENT_009",
+            "동일한 결제 키가 다른 요청에 사용되었습니다."
+    ),
+    PAYMENT_ALREADY_DECLINED(
+            HttpStatus.CONFLICT,
+            "PAYMENT_010",
+            "이미 실패 처리된 결제 요청입니다."
+    ),
+    PAYMENT_ATTEMPT_NOT_FOUND(
+            HttpStatus.CONFLICT,
+            "PAYMENT_011",
+            "결제 시도 정보를 찾을 수 없습니다."
+    ),
+    INVALID_PAYMENT_IDEMPOTENCY_KEY(
+            HttpStatus.BAD_REQUEST,
+            "PAYMENT_012",
+            "유효하지 않은 결제 멱등 키입니다."
+    ),
 
     CART_NOT_FOUND(
             HttpStatus.BAD_REQUEST,
