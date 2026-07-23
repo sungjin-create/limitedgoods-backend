@@ -135,7 +135,12 @@ public class BackofficeProductService {
         
         ProductSnapshot after = ProductSnapshot.from(updateProduct);
 
-        productHistoryService.recordProductUpdate(updateProduct, changedByUser, before, after, "상품 변경");
+        productHistoryService.recordProductUpdate(
+                updateProduct,
+                changedByUser,
+                before,
+                after,
+                productUpdateRequest.getReason());
 
         return toResponse(updateProduct);
     }
@@ -188,7 +193,7 @@ public class BackofficeProductService {
                 changedByUser,
                 currentStock,
                 adjustedStock,
-                "상품 수량 변경");
+                request.getReason());
 
         return toResponse(product);
     }

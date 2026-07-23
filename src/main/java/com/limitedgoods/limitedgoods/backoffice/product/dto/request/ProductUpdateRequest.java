@@ -41,4 +41,7 @@ public class ProductUpdateRequest {
 
     private LocalDateTime saleStartAt;
     private LocalDateTime saleEndAt;
+
+    @Size(max = 1000, message = "변경 사유는 1,000자 이하여야 합니다.")
+    private String reason;
 }
