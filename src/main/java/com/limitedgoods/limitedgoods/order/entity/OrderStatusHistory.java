@@ -2,7 +2,6 @@ package com.limitedgoods.limitedgoods.order.entity;
 
 import com.limitedgoods.limitedgoods.user.entity.User;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
