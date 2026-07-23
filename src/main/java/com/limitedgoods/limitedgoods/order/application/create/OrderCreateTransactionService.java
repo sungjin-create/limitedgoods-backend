@@ -10,6 +10,8 @@ import com.limitedgoods.limitedgoods.order.dto.response.OrderResponse;
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
+import com.limitedgoods.limitedgoods.order.metrics.OrderCreateMetricEvent;
+import com.limitedgoods.limitedgoods.order.metrics.OrderExpiredMetricEvent;
 import com.limitedgoods.limitedgoods.order.repository.OrderItemRepository;
 import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
@@ -17,6 +19,7 @@ import com.limitedgoods.limitedgoods.product.service.ProductSoldOutCacheService;
 import com.limitedgoods.limitedgoods.user.entity.User;
 import com.limitedgoods.limitedgoods.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +41,8 @@ public class OrderCreateTransactionService {
     private final OrderItemRepository orderItemRepository;
     private final OrderStockReservationService stockReservationService;
     private final OrderStatusHistoryService historyService;
+    private final ApplicationEventPublisher eventPublisher;
+
 
 
     @Transactional
@@ -75,6 +80,8 @@ public class OrderCreateTransactionService {
         saveOrderItems(savedOrder, reservation.orderItems());
 
         historyService.createInitialHistory(savedOrder);
+
+        eventPublisher.publishEvent(OrderCreateMetricEvent.success());
 
         return orderResponseMapper.toResponse(savedOrder);
     }
@@ -182,6 +189,9 @@ public class OrderCreateTransactionService {
                     "새로운 주문 생성으로 이전 주문 만료처리",
                     order.getUser()
             );
+
+            eventPublisher.publishEvent(OrderExpiredMetricEvent.replacedByNewOrder());
+
         }
     }
 

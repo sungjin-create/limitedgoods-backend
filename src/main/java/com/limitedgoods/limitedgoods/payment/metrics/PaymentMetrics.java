@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.order.metrics;
+package com.limitedgoods.limitedgoods.payment.metrics;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
@@ -7,25 +7,21 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class OrderMetrics {
+public class PaymentMetrics {
 
     private final MeterRegistry meterRegistry;
 
-    public void recordOrderCreate(
+    public void recordPayment(
             String result,
             String reason
     ) {
         meterRegistry.counter(
-                "limitedgoods.order.create",
+                "limitedgoods.payment",
                 Tags.of(
                         "result", result,
-                        "reason", normalize(reason))).increment();
-    }
-
-    public void recordOrderExpired(String reason) {
-        meterRegistry.counter(
-                "limitedgoods.order.expired",
-                Tags.of("reason", normalize(reason))).increment();
+                        "reason", normalize(reason)
+                )
+        ).increment();
     }
 
     private String normalize(String reason) {
@@ -33,4 +29,15 @@ public class OrderMetrics {
                 ? "none"
                 : reason;
     }
+
+    public void recordRevenue(long amount) {
+        if (amount <= 0) {
+            return;
+        }
+
+        meterRegistry.counter(
+                "limitedgoods.payment.revenue"
+        ).increment(amount);
+    }
+
 }

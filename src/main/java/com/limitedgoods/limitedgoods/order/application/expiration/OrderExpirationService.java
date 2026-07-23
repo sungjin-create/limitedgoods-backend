@@ -10,11 +10,13 @@ import com.limitedgoods.limitedgoods.order.application.support.OrderAccessServic
 import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
+import com.limitedgoods.limitedgoods.order.metrics.OrderExpiredMetricEvent;
 import com.limitedgoods.limitedgoods.order.repository.OrderItemRepository;
 import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import com.limitedgoods.limitedgoods.product.service.ProductSoldOutCacheService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,7 @@ public class OrderExpirationService {
     private final OutboxEventService outboxEventService;
     private final OrderStatusHistoryService historyService;
     private final OrderAccessService orderAccessService;
+    private final ApplicationEventPublisher publisher;
 
     @Transactional
     public void expireOrder(Long orderId) {
@@ -53,14 +56,6 @@ public class OrderExpirationService {
 
         order.markExpired(now);
 
-        historyService.record(
-                order,
-                previousStatus,
-                OrderStatus.EXPIRED,
-                "결제 기한 만료",
-                order.getUser()
-        );
-
         List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
         if (orderItems.isEmpty()) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND);
 
@@ -71,12 +66,23 @@ public class OrderExpirationService {
             productSoldOutCacheService.clearSoldOutAfterCommit(productId);
         }
 
+        historyService.record(
+                order,
+                previousStatus,
+                OrderStatus.EXPIRED,
+                "결제 기한 만료",
+                order.getUser()
+        );
+
         outboxEventService.save(
                 OutboxEventType.ORDER_EXPIRED,
                 "ORDER",
                 orderId,
                 new OrderExpiredEvent(orderId, LocalDateTime.now())
         );
+
+        publisher.publishEvent(OrderExpiredMetricEvent.timeout());
+
     }
 
     @Transactional(readOnly = true)

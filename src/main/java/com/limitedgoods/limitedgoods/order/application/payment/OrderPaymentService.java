@@ -15,10 +15,10 @@ import com.limitedgoods.limitedgoods.order.entity.Order;
 import com.limitedgoods.limitedgoods.order.entity.OrderItem;
 import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import com.limitedgoods.limitedgoods.order.repository.OrderItemRepository;
-import com.limitedgoods.limitedgoods.order.repository.OrderRepository;
-import com.limitedgoods.limitedgoods.order.application.payment.dto.OrderPaymentInfo;
+import com.limitedgoods.limitedgoods.payment.metrics.PaymentMetricEvent;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +29,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OrderPaymentService {
 
-    private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final OutboxEventService outboxEventService;
     private final OrderItemRepository orderItemRepository;
@@ -37,12 +36,7 @@ public class OrderPaymentService {
     private final CartService cartService;
     private final OrderStatusHistoryService historyService;
     private final OrderAccessService orderAccessService;
-
-    @Transactional(readOnly = true)
-    public OrderPaymentInfo getPaymentInfo(Long userId, Long orderId) {
-        Order order = getOrder(orderId, userId);
-        return new OrderPaymentInfo(order.getId(), order.getTotalPrice(), order.getStatus());
-    }
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public OrderResponse finalizeApprovedPayment(Long userId, Long orderId) {
@@ -105,18 +99,10 @@ public class OrderPaymentService {
                 )
         );
 
+        eventPublisher.publishEvent(
+                PaymentMetricEvent.success(order.getTotalPrice()));
+
         return orderResponseMapper.toResponse(order);
-    }
-
-    private Order getOrder(Long orderId, Long userId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
-
-        if (!order.getUser().getId().equals(userId)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-
-        return order;
     }
 
     private void updateProductSoldCount(List<OrderItem> orderItemList) {

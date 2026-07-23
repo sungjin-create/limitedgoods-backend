@@ -12,9 +12,11 @@ import com.limitedgoods.limitedgoods.order.entity.OrderStatus;
 import com.limitedgoods.limitedgoods.payment.dto.PaymentResult;
 import com.limitedgoods.limitedgoods.payment.entity.PaymentAttempt;
 import com.limitedgoods.limitedgoods.payment.entity.PaymentAttemptStatus;
+import com.limitedgoods.limitedgoods.payment.metrics.PaymentMetricEvent;
 import com.limitedgoods.limitedgoods.payment.repository.PaymentAttemptRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -28,6 +30,7 @@ public class PaymentCommandService {
     private final PaymentAttemptRepository paymentAttemptRepository;
     private final OrderStatusHistoryService historyService;
     private final OrderAccessService orderAccessService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public PaymentStartResult preparePayment(
@@ -167,6 +170,8 @@ public class PaymentCommandService {
                     order.getUser()
             );
         }
+
+        eventPublisher.publishEvent(PaymentMetricEvent.declined());
     }
 
     @Transactional

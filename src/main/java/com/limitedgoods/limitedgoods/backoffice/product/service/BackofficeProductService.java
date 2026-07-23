@@ -140,7 +140,7 @@ public class BackofficeProductService {
                 changedByUser,
                 before,
                 after,
-                productUpdateRequest.getReason());
+                productUpdateRequest.getReason().trim());
 
         return toResponse(updateProduct);
     }
@@ -193,7 +193,7 @@ public class BackofficeProductService {
                 changedByUser,
                 currentStock,
                 adjustedStock,
-                request.getReason());
+                request.getReason().trim());
 
         return toResponse(product);
     }

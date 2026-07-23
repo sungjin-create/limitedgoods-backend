@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -23,6 +24,7 @@ public class StockAdjustmentRequest {
     private Integer quantity;
 
     @NotBlank(message = "재고 조정 사유는 필수입니다.")
+    @Size(max = 1000, message = "재고 조정 사유는 1,000자 이하여야 합니다.")
     private String reason;
 
 }

@@ -5,6 +5,7 @@ import com.limitedgoods.limitedgoods.order.application.create.dto.OrderAdmission
 import com.limitedgoods.limitedgoods.order.application.create.idempotency.OrderRequestFingerprintGenerator;
 import com.limitedgoods.limitedgoods.order.dto.request.OrderRequest;
 import com.limitedgoods.limitedgoods.order.dto.response.OrderResponse;
+import com.limitedgoods.limitedgoods.order.metrics.OrderMetrics;
 import com.limitedgoods.limitedgoods.order.policy.OrderProductValidationResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,41 +22,46 @@ public class CreateOrderUseCase {
     private final OrderAdmissionCoordinator admissionCoordinator;
     private final OrderRequestFingerprintGenerator fingerprintGenerator;
     private final OrderCreateTransactionService orderCreateTransactionService;
+    private final OrderMetrics orderMetrics;
 
 
     public OrderResponse execute(
             Long userId,
             OrderRequest request
     ) {
-        preconditionChecker.validateRequest(request);
+        Optional<OrderAdmissionClaim> admissionClaim = Optional.empty();
 
-        String checkoutToken = request.checkoutToken();
-        String requestFingerprint = fingerprintGenerator.generate(request.items());
+        try{
+            preconditionChecker.validateRequest(request);
 
-        OrderResponse existing =
-                orderCreateTransactionService.findIdempotentOrder(
-                    userId,
-                    checkoutToken,
-                    requestFingerprint
-        );
+            String checkoutToken = request.checkoutToken();
+            String requestFingerprint = fingerprintGenerator.generate(request.items());
 
-        if (existing != null) {
-            return existing;
-        }
-
-        OrderProductValidationResult validationResult =
-                preconditionChecker.checkNewOrder(userId, request);
-
-        Optional<OrderAdmissionClaim> admissionClaim =
-                admissionCoordinator.claimIfRequired(
-                        request.admissionToken(),
+            OrderResponse existing =
+                    orderCreateTransactionService.findIdempotentOrder(
                         userId,
-                        validationResult.admissionProductId(),
                         checkoutToken,
                         requestFingerprint
-                );
+            );
 
-        try {
+            if (existing != null) {
+                orderMetrics.recordOrderCreate("duplicate", "idempotent_replay");
+                return existing;
+            }
+
+            OrderProductValidationResult validationResult =
+                    preconditionChecker.checkNewOrder(userId, request);
+
+            admissionClaim =
+                    admissionCoordinator.claimIfRequired(
+                            request.admissionToken(),
+                            userId,
+                            validationResult.admissionProductId(),
+                            checkoutToken,
+                            requestFingerprint
+                    );
+
+
             OrderResponse order =
                     orderCreateTransactionService.createOrder(
                             userId,
@@ -64,16 +70,21 @@ public class CreateOrderUseCase {
                             checkoutToken,
                             requestFingerprint
                     );
+
             admissionCoordinator.completeAfterOrderCreated(admissionClaim);
 
             return order;
 
         } catch (BusinessException exception) {
+            orderMetrics.recordOrderCreate("failure", exception.getErrorCode().getCode());
+
             admissionCoordinator.releaseAfterBusinessFailure(admissionClaim);
 
             throw exception;
 
         } catch (RuntimeException exception) {
+            orderMetrics.recordOrderCreate("failure", "internal_error");
+
             admissionCoordinator.retainAfterUnknownFailure(admissionClaim, exception);
 
             throw exception;

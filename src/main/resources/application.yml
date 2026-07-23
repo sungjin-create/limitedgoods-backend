@@ -58,11 +58,26 @@ management:
 
   endpoint:
     health:
-      show-details: always
+      show-components: always
+      show-details: when-authorized
+      probes:
+        enabled: true
 
   metrics:
-    export:
-      prometheus:
+    tags:
+      application: ${spring.application.name}
+      environment: ${APP_ENV:local}
+
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+      slo:
+        http.server.requests: 100ms,300ms,500ms,1s,2s
+
+  prometheus:
+    metrics:
+      export:
         enabled: true
 
 logging:
