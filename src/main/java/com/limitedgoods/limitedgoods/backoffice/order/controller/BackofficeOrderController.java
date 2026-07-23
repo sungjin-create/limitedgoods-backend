@@ -30,7 +30,8 @@ public class BackofficeOrderController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
             LocalDateTime endAt
     ){
-        return ResponseEntity.ok(ApiResponse.success(backofficeOrderService.findBackofficeOrders(startAt, endAt)));
+        return ResponseEntity.ok(ApiResponse.success(
+                backofficeOrderService.findBackofficeOrders(startAt, endAt)));
     }
 
     @PatchMapping("/{orderId}/complete")

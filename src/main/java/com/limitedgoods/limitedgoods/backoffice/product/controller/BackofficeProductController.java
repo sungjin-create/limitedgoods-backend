@@ -9,9 +9,11 @@ import com.limitedgoods.limitedgoods.backoffice.product.dto.response.ProductStoc
 import com.limitedgoods.limitedgoods.backoffice.product.service.BackofficeProductService;
 import com.limitedgoods.limitedgoods.common.response.ApiResponse;
 import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
+import com.limitedgoods.limitedgoods.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -29,22 +31,26 @@ public class BackofficeProductController {
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<ProductResponse>> productRegister(
-            @Valid @RequestBody ProductRegisterRequest productRegisterRequest) {
-        ProductResponse response = backofficeProductService.registerProduct(productRegisterRequest);
+            @Valid @RequestBody ProductRegisterRequest productRegisterRequest,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        ProductResponse response = backofficeProductService.registerProduct(userDetails.getUserId(), productRegisterRequest);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PutMapping("/update")
     public ResponseEntity<ApiResponse<ProductResponse>> productUpdate(
-            @Valid @RequestBody ProductUpdateRequest productUpdateRequest) {
-        ProductResponse response = backofficeProductService.updateProduct(productUpdateRequest);
+            @Valid @RequestBody ProductUpdateRequest productUpdateRequest,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        ProductResponse response = backofficeProductService.updateProduct(userDetails.getUserId(), productUpdateRequest);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PutMapping("/stock")
     public ResponseEntity<ApiResponse<ProductResponse>> adjustStock(
-            @Valid @RequestBody StockAdjustmentRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(backofficeProductService.adjustStock(request)));
+            @Valid @RequestBody StockAdjustmentRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success(
+                backofficeProductService.adjustStock(userDetails.getUserId(),request)));
     }
 
     @GetMapping("/{productId}/stock-overview")

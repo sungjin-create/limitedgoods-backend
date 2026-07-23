@@ -75,7 +75,7 @@ public interface BackofficeOrderQueryRepository extends JpaRepository<Order, Lon
     join o.user u
     join oi.product p
     where (o.createdAt >= :startAt)
-      and (o.expiresAt <= :endAt)
+      and (o.createdAt <= :endAt)
     order by o.createdAt desc
     """)
     List<OrderFlatQueryResult> findBackofficeOrdersFlat(

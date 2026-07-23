@@ -33,30 +33,6 @@ public class ProductService {
         return productRepository.searchByKeyword(pageable, keyword).map(this::toResponse);
     }
 
-    private void validatePurchasable(Product product, LocalDateTime now) {
-        boolean statusAllowsSale =
-                product.getStatus() == ProductStatus.ACTIVE
-                        || (
-                        product.getStatus() == ProductStatus.SCHEDULED
-                                && product.getSaleStartAt() != null
-                                && !product.getSaleStartAt().isAfter(now)
-                );
-
-        boolean saleStarted =
-                product.getSaleStartAt() == null ||
-                        !product.getSaleStartAt().isAfter(now);
-
-        boolean saleNotEnded =
-                product.getSaleEndAt() == null ||
-                        now.isBefore(product.getSaleEndAt());
-
-        if (!statusAllowsSale || !saleStarted || !saleNotEnded) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_PRODUCT_SALE_STATUS
-            );
-        }
-    }
-
     private ProductResponseDTO toResponse(Product product) {
         return ProductResponseDTO.builder()
                 .id(product.getId())

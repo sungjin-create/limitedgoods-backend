@@ -11,21 +11,21 @@ import com.limitedgoods.limitedgoods.backoffice.product.query.BackofficeProductQ
 import com.limitedgoods.limitedgoods.backoffice.product.query.ProductOrderSummaryQueryResult;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
-import com.limitedgoods.limitedgoods.order.policy.ProductOrderPolicy;
+import com.limitedgoods.limitedgoods.product.application.history.ProductHistoryService;
+import com.limitedgoods.limitedgoods.product.application.history.ProductSnapshot;
 import com.limitedgoods.limitedgoods.product.entity.Product;
 import com.limitedgoods.limitedgoods.product.entity.ProductStatus;
 import com.limitedgoods.limitedgoods.product.entity.ProductType;
 import com.limitedgoods.limitedgoods.product.policy.ProductStatusPolicy;
 import com.limitedgoods.limitedgoods.product.repository.ProductRepository;
+import com.limitedgoods.limitedgoods.user.application.support.UserAccessService;
+import com.limitedgoods.limitedgoods.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import static com.limitedgoods.limitedgoods.product.entity.ProductStatus.*;
 
@@ -36,6 +36,8 @@ public class BackofficeProductService {
     private final ProductRepository productRepository;
     private final BackofficeProductQueryRepository backofficeProductQueryRepository;
     private final ProductStatusPolicy productStatusPolicy;
+    private final UserAccessService userAccessService;
+    private final ProductHistoryService productHistoryService;
 
     @Transactional
     public ProductListResponse findBackofficeProductList(ProductStatus status) {
@@ -56,7 +58,9 @@ public class BackofficeProductService {
     }
 
     @Transactional
-    public ProductResponse registerProduct (ProductRegisterRequest productRegisterRequest) {
+    public ProductResponse registerProduct (Long userId, ProductRegisterRequest productRegisterRequest) {
+        User changedByUser = userAccessService.getUser(userId);
+
         String name = productRegisterRequest.getName();
         String description = productRegisterRequest.getDescription();
         int price = productRegisterRequest.getPrice();
@@ -89,11 +93,15 @@ public class BackofficeProductService {
 
         Product saveProduct = productRepository.save(product);
 
+        productHistoryService.recordInitial(saveProduct, changedByUser);
+
         return toResponse(saveProduct);
     }
 
     @Transactional
-    public ProductResponse updateProduct (ProductUpdateRequest productUpdateRequest) {
+    public ProductResponse updateProduct (Long userId, ProductUpdateRequest productUpdateRequest) {
+        User changedByUser = userAccessService.getUser(userId);
+
         Long id = productUpdateRequest.getId();
         String nextName = productUpdateRequest.getName();
         String nextDescription = productUpdateRequest.getDescription();
@@ -104,30 +112,38 @@ public class BackofficeProductService {
         LocalDateTime nextSaleStartAt = productUpdateRequest.getSaleStartAt();
         LocalDateTime nextSaleEndAt = productUpdateRequest.getSaleEndAt();
 
-        Product currentProduct = productRepository.findByIdWithLock(id)
+        Product updateProduct = productRepository.findByIdWithLock(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
 
+        ProductSnapshot before = ProductSnapshot.from(updateProduct);
+        
         //상태변경 검사
-        productStatusPolicy.validateTransition(currentProduct.getStatus(), nextStatus);
+        productStatusPolicy.validateTransition(updateProduct.getStatus(), nextStatus);
 
         //상태에 따른 일정 변경 검사
         productStatusPolicy.validateSaleSchedule(nextStatus, nextSaleStartAt, nextSaleEndAt);
 
-        currentProduct.setName(nextName);
-        currentProduct.setDescription(nextDescription);
-        currentProduct.setPrice(nextPrice);
-        currentProduct.setMaxPurchaseQuantity(nextMaxPurchaseQuantity);
-        currentProduct.setType(nextType);
-        currentProduct.setStatus(nextStatus);
-        currentProduct.setSaleStartAt(nextSaleStartAt);
-        currentProduct.setSaleEndAt(nextSaleEndAt);
-        currentProduct.setUpdatedAt(LocalDateTime.now());
+        updateProduct.setName(nextName);
+        updateProduct.setDescription(nextDescription);
+        updateProduct.setPrice(nextPrice);
+        updateProduct.setMaxPurchaseQuantity(nextMaxPurchaseQuantity);
+        updateProduct.setType(nextType);
+        updateProduct.setStatus(nextStatus);
+        updateProduct.setSaleStartAt(nextSaleStartAt);
+        updateProduct.setSaleEndAt(nextSaleEndAt);
+        updateProduct.setUpdatedAt(LocalDateTime.now());
+        
+        ProductSnapshot after = ProductSnapshot.from(updateProduct);
 
-        return toResponse(currentProduct);
+        productHistoryService.recordProductUpdate(updateProduct, changedByUser, before, after, "상품 변경");
+
+        return toResponse(updateProduct);
     }
 
     @Transactional
-    public ProductResponse adjustStock(StockAdjustmentRequest request) {
+    public ProductResponse adjustStock(Long userId, StockAdjustmentRequest request) {
+        User changedByUser = userAccessService.getUser(userId);
+
         Product product = productRepository.findByIdWithLock(request.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PRODUCT_ID));
 
@@ -143,14 +159,22 @@ public class BackofficeProductService {
 
         switch (request.getAdjustmentType()) {
             case INCREASE -> {
-                if (quantity == 0) throw new BusinessException(ErrorCode.INVALID_INPUT);
+                if (quantity == 0) {
+                    throw new BusinessException(ErrorCode.INVALID_INPUT);
+                }
                 long increasedStock = (long) currentStock + quantity;
-                if (increasedStock > Integer.MAX_VALUE) throw new BusinessException(ErrorCode.INVALID_INPUT);
+                if (increasedStock > Integer.MAX_VALUE) {
+                    throw new BusinessException(ErrorCode.INVALID_INPUT);
+                }
                 adjustedStock = (int) increasedStock;
             }
             case DECREASE -> {
-                if (quantity == 0) throw new BusinessException(ErrorCode.INVALID_INPUT);
-                if (currentStock < quantity) throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
+                if (quantity == 0) {
+                    throw new BusinessException(ErrorCode.INVALID_INPUT);
+                }
+                if (currentStock < quantity) {
+                    throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK);
+                }
                 adjustedStock = currentStock - quantity;
             }
             default -> throw new BusinessException(ErrorCode.INVALID_INPUT);
@@ -158,6 +182,14 @@ public class BackofficeProductService {
 
         product.setStock(adjustedStock);
         product.setUpdatedAt(LocalDateTime.now());
+
+        productHistoryService.recordStock(
+                product,
+                changedByUser,
+                currentStock,
+                adjustedStock,
+                "상품 수량 변경");
+
         return toResponse(product);
     }
 
