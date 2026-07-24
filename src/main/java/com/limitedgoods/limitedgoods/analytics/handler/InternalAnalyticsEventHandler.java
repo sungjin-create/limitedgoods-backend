@@ -1,10 +1,10 @@
-package com.limitedgoods.limitedgoods.analytics.service;
+package com.limitedgoods.limitedgoods.analytics.handler;
 
 import com.limitedgoods.limitedgoods.analytics.entity.ProductSalesProjection;
 import com.limitedgoods.limitedgoods.analytics.repository.ProductSalesProjectionRepository;
 import com.limitedgoods.limitedgoods.event.payload.order.OrderPaidEvent;
-import com.limitedgoods.limitedgoods.event.processed.entity.ProcessedEvent;
-import com.limitedgoods.limitedgoods.event.processed.repository.ProcessedEventRepository;
+import com.limitedgoods.limitedgoods.event.idempotency.entity.ProcessedEvent;
+import com.limitedgoods.limitedgoods.event.idempotency.repository.ProcessedEventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;

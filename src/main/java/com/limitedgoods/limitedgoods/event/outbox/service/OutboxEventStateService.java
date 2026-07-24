@@ -11,7 +11,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class InternalOutboxStateService {
+public class OutboxEventStateService {
 
     private final OutboxEventRepository repository;
 

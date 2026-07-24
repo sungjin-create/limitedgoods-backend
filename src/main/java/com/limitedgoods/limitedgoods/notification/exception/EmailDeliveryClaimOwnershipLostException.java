@@ -2,9 +2,9 @@ package com.limitedgoods.limitedgoods.notification.exception;
 
 import java.util.UUID;
 
-public class ClaimOwnershipLostException extends RuntimeException {
+public class EmailDeliveryClaimOwnershipLostException extends RuntimeException {
 
-    public ClaimOwnershipLostException(
+    public EmailDeliveryClaimOwnershipLostException(
             Long deliveryId,
             UUID claimToken
     ) {

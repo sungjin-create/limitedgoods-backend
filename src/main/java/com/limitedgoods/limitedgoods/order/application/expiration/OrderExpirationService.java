@@ -3,7 +3,7 @@ package com.limitedgoods.limitedgoods.order.application.expiration;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEventType;
-import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventService;
+import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventWriter;
 import com.limitedgoods.limitedgoods.event.payload.order.OrderExpiredEvent;
 import com.limitedgoods.limitedgoods.order.application.history.OrderStatusHistoryService;
 import com.limitedgoods.limitedgoods.order.application.support.OrderAccessService;
@@ -31,7 +31,7 @@ public class OrderExpirationService {
     private final OrderItemRepository orderItemRepository;
     private final ProductRepository productRepository;
     private final ProductSoldOutCacheService productSoldOutCacheService;
-    private final OutboxEventService outboxEventService;
+    private final OutboxEventWriter outboxEventWriter;
     private final OrderStatusHistoryService historyService;
     private final OrderAccessService orderAccessService;
     private final ApplicationEventPublisher publisher;
@@ -74,7 +74,7 @@ public class OrderExpirationService {
                 order.getUser()
         );
 
-        outboxEventService.save(
+        outboxEventWriter.append(
                 OutboxEventType.ORDER_EXPIRED,
                 "ORDER",
                 orderId,

@@ -2,8 +2,8 @@ package com.limitedgoods.limitedgoods.notification.worker;
 
 import com.limitedgoods.limitedgoods.notification.exception.EmailInfrastructureException;
 import com.limitedgoods.limitedgoods.notification.infrastructure.mail.EmailProviderCircuit;
-import com.limitedgoods.limitedgoods.notification.service.ClaimedEmail;
-import com.limitedgoods.limitedgoods.notification.service.EmailDeliveryService;
+import com.limitedgoods.limitedgoods.notification.service.ClaimedEmailDelivery;
+import com.limitedgoods.limitedgoods.notification.service.EmailDeliveryProcessor;
 import com.limitedgoods.limitedgoods.notification.service.EmailDeliveryStateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +29,7 @@ import java.util.List;
 public class EmailDeliveryWorker {
 
     private final EmailDeliveryStateService stateService;
-    private final EmailDeliveryService deliveryService;
+    private final EmailDeliveryProcessor deliveryProcessor;
     private final EmailProviderCircuit providerCircuit;
 
     @Value("${app.mail.max-attempts:5}")
@@ -59,7 +59,7 @@ public class EmailDeliveryWorker {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime staleBefore = now.minusSeconds(processingLeaseSeconds);
 
-        List<ClaimedEmail> claims =
+        List<ClaimedEmailDelivery> claims =
                 stateService.claimBatch(
                         now,
                         staleBefore,
@@ -70,13 +70,13 @@ public class EmailDeliveryWorker {
         processClaims(claims);
     }
 
-    private void processClaims(List<ClaimedEmail> claims) {
+    private void processClaims(List<ClaimedEmailDelivery> claims) {
         for (int index = 0; index < claims.size(); index++) {
 
-            ClaimedEmail claim = claims.get(index);
+            ClaimedEmailDelivery claim = claims.get(index);
 
             try {
-                deliveryService.send(claim);
+                deliveryProcessor.process(claim);
 
             } catch (EmailInfrastructureException exception) {
                 releaseRemainingClaims(claims, index + 1,exception);
@@ -95,7 +95,7 @@ public class EmailDeliveryWorker {
     }
 
     private void releaseRemainingClaims(
-            List<ClaimedEmail> claims,
+            List<ClaimedEmailDelivery> claims,
             int fromIndex,
             EmailInfrastructureException exception
     ) {
@@ -107,7 +107,7 @@ public class EmailDeliveryWorker {
 
         LocalDateTime nextAttemptAt = LocalDateTime.now().plus(backoff);
 
-        List<ClaimedEmail> remainingClaims = claims.subList(fromIndex, claims.size());
+        List<ClaimedEmailDelivery> remainingClaims = claims.subList(fromIndex, claims.size());
 
         stateService.releaseBatchAfterInfrastructureFailure(
                 remainingClaims,

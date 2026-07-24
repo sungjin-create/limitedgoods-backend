@@ -3,7 +3,7 @@ package com.limitedgoods.limitedgoods.order.application.cancel;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEventType;
-import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventService;
+import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventWriter;
 import com.limitedgoods.limitedgoods.event.payload.order.OrderCanceledEvent;
 import com.limitedgoods.limitedgoods.order.application.cancel.dto.RefundCommand;
 import com.limitedgoods.limitedgoods.order.application.history.OrderStatusHistoryService;
@@ -36,7 +36,7 @@ public class OrderCancellationService {
     private final ProductSoldOutCacheService productSoldOutCacheService;
     private final OrderStatusHistoryService historyService;
     private final PaymentAttemptRepository paymentAttemptRepository;
-    private final OutboxEventService outboxEventService;
+    private final OutboxEventWriter outboxEventWriter;
 
     @Transactional
     public RefundCommand prepareRefund(
@@ -137,7 +137,7 @@ public class OrderCancellationService {
                 order.getUser()
         );
 
-        outboxEventService.save(
+        outboxEventWriter.append(
                 OutboxEventType.ORDER_CANCELED,
                 "ORDER",
                 orderId,

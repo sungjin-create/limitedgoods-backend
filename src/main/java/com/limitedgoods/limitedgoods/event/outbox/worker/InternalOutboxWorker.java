@@ -1,9 +1,9 @@
 package com.limitedgoods.limitedgoods.event.outbox.worker;
 
-import com.limitedgoods.limitedgoods.event.outbox.exception.OutboxClaimOwnershipLostException;
+import com.limitedgoods.limitedgoods.event.outbox.exception.OutboxEventClaimOwnershipLostException;
 import com.limitedgoods.limitedgoods.event.outbox.service.ClaimedOutboxEvent;
-import com.limitedgoods.limitedgoods.event.outbox.service.InternalOutboxProcessor;
-import com.limitedgoods.limitedgoods.event.outbox.service.InternalOutboxStateService;
+import com.limitedgoods.limitedgoods.event.outbox.processor.InternalOutboxProcessor;
+import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventStateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,7 +20,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class InternalOutboxWorker {
 
-    private final InternalOutboxStateService stateService;
+    private final OutboxEventStateService stateService;
     private final InternalOutboxProcessor processor;
 
     @Value("${outbox.max-attempts:5}")
@@ -54,7 +54,7 @@ public class InternalOutboxWorker {
         try {
             processor.process(claim);
 
-        } catch (OutboxClaimOwnershipLostException exception) {
+        } catch (OutboxEventClaimOwnershipLostException exception) {
             /*
              * lease가 만료되어 다른 서버가 이미 다시 가져갔습니다.
              * 오래된 서버가 FAILED 상태로 덮어쓰면 안 됩니다.
@@ -74,7 +74,7 @@ public class InternalOutboxWorker {
                         LocalDateTime.now()
                 );
 
-            } catch (OutboxClaimOwnershipLostException ownershipException) {
+            } catch (OutboxEventClaimOwnershipLostException ownershipException) {
                 exception.addSuppressed(ownershipException);
 
                 log.warn(

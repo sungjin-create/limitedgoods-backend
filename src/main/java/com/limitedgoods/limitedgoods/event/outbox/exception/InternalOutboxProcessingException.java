@@ -1,9 +1,9 @@
 package com.limitedgoods.limitedgoods.event.outbox.exception;
 
-public class InternalEventProcessingException
+public class InternalOutboxProcessingException
         extends RuntimeException {
 
-    public InternalEventProcessingException(
+    public InternalOutboxProcessingException(
             Long eventId
     ) {
         super(

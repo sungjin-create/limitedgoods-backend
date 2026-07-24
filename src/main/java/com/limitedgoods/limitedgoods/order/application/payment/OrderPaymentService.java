@@ -4,7 +4,7 @@ import com.limitedgoods.limitedgoods.cart.service.CartService;
 import com.limitedgoods.limitedgoods.common.exception.BusinessException;
 import com.limitedgoods.limitedgoods.common.exception.ErrorCode;
 import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEventType;
-import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventService;
+import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventWriter;
 import com.limitedgoods.limitedgoods.event.payload.order.OrderPaidEvent;
 import com.limitedgoods.limitedgoods.event.payload.order.OrderPaidItem;
 import com.limitedgoods.limitedgoods.order.application.history.OrderStatusHistoryService;
@@ -30,7 +30,7 @@ import java.util.List;
 public class OrderPaymentService {
 
     private final ProductRepository productRepository;
-    private final OutboxEventService outboxEventService;
+    private final OutboxEventWriter outboxEventWriter;
     private final OrderItemRepository orderItemRepository;
     private final OrderResponseMapper orderResponseMapper;
     private final CartService cartService;
@@ -79,7 +79,7 @@ public class OrderPaymentService {
                 order.getUser()
         );
 
-        outboxEventService.save(
+        outboxEventWriter.append(
                 OutboxEventType.ORDER_PAID,
                 "ORDER",
                 order.getId(),

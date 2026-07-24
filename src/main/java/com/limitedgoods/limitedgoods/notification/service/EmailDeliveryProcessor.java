@@ -5,7 +5,7 @@ import com.limitedgoods.limitedgoods.notification.exception.EmailInfrastructureE
 import com.limitedgoods.limitedgoods.notification.exception.NonRetryableEmailException;
 import com.limitedgoods.limitedgoods.notification.exception.RetryableEmailException;
 import com.limitedgoods.limitedgoods.notification.infrastructure.mail.EmailProviderCircuit;
-import com.limitedgoods.limitedgoods.notification.infrastructure.mail.EmailSender;
+import com.limitedgoods.limitedgoods.notification.sendor.EmailSender;
 import com.limitedgoods.limitedgoods.notification.repository.EmailDeliveryRepository;
 import com.limitedgoods.limitedgoods.notification.template.EmailContent;
 import com.limitedgoods.limitedgoods.notification.template.EmailTemplateNotFoundException;
@@ -24,7 +24,7 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "app.mail.enabled", havingValue = "true")
-public class EmailDeliveryService {
+public class EmailDeliveryProcessor {
     private final EmailDeliveryRepository emailDeliveryRepository;
     private final EmailSender emailSender;
     private final EmailDeliveryStateService stateService;
@@ -37,7 +37,7 @@ public class EmailDeliveryService {
     @Value("${app.mail.infrastructure-backoff-ms:300000}")
     private long infrastructureBackoffMs;
 
-    public void send(ClaimedEmail claim) {
+    public void process(ClaimedEmailDelivery claim) {
 
         EmailDelivery delivery =
                 emailDeliveryRepository

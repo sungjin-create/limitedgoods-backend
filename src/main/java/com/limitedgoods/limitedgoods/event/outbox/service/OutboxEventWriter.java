@@ -11,12 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class OutboxEventService {
+public class OutboxEventWriter {
 
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
 
-    public void save(
+    public void append(
             OutboxEventType eventType,
             String aggregateType,
             Long aggregateId,

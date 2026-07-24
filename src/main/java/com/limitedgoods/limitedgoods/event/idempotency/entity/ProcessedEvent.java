@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.event.processed.entity;
+package com.limitedgoods.limitedgoods.event.idempotency.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;

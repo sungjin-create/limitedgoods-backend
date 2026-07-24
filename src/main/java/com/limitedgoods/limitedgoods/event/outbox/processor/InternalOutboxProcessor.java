@@ -1,13 +1,15 @@
-package com.limitedgoods.limitedgoods.event.outbox.service;
+package com.limitedgoods.limitedgoods.event.outbox.processor;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.limitedgoods.limitedgoods.analytics.service.InternalAnalyticsEventHandler;
+import com.limitedgoods.limitedgoods.analytics.handler.InternalAnalyticsEventHandler;
 import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEvent;
-import com.limitedgoods.limitedgoods.event.outbox.exception.InternalEventProcessingException;
+import com.limitedgoods.limitedgoods.event.outbox.exception.InternalOutboxProcessingException;
 import com.limitedgoods.limitedgoods.event.outbox.repository.OutboxEventRepository;
+import com.limitedgoods.limitedgoods.event.outbox.service.ClaimedOutboxEvent;
+import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventStateService;
 import com.limitedgoods.limitedgoods.event.payload.order.OrderPaidEvent;
-import com.limitedgoods.limitedgoods.notification.service.InternalEmailEventHandler;
+import com.limitedgoods.limitedgoods.notification.handler.InternalEmailEventHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,7 +22,7 @@ import java.time.LocalDateTime;
 public class InternalOutboxProcessor {
 
     private final OutboxEventRepository outboxEventRepository;
-    private final InternalOutboxStateService internalOutboxStateService;
+    private final OutboxEventStateService outboxEventStateService;
     private final InternalEmailEventHandler emailEventHandler;
     private final InternalAnalyticsEventHandler analyticsEventHandler;
     private final ObjectMapper objectMapper;
@@ -51,7 +53,7 @@ public class InternalOutboxProcessor {
                     );
         }
 
-        internalOutboxStateService.markPublished(
+        outboxEventStateService.markPublished(
                 claim,
                 LocalDateTime.now()
         );
@@ -60,8 +62,8 @@ public class InternalOutboxProcessor {
     private void processOrderPaid(OutboxEvent outboxEvent) {
         OrderPaidEvent event = readOrderPaidEvent(outboxEvent.getPayload());
 
-        InternalEventProcessingException failure =
-                new InternalEventProcessingException(outboxEvent.getId());
+        InternalOutboxProcessingException failure =
+                new InternalOutboxProcessingException(outboxEvent.getId());
 
         boolean failed = false;
 

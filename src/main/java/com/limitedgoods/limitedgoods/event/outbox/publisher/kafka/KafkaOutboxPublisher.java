@@ -1,31 +1,32 @@
-package com.limitedgoods.limitedgoods.event.outbox.publisher;
+package com.limitedgoods.limitedgoods.event.outbox.publisher.kafka;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEvent;
 import com.limitedgoods.limitedgoods.event.outbox.entity.OutboxEventStatus;
 import com.limitedgoods.limitedgoods.event.outbox.repository.OutboxEventRepository;
-import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventService;
-import com.limitedgoods.limitedgoods.event.processed.dto.KafkaEventEnvelope;
+import com.limitedgoods.limitedgoods.event.outbox.service.OutboxEventWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Slf4j
 @Component
+@Profile("!internal-worker")
 @RequiredArgsConstructor
-public class OutboxEventPublisher {
+public class KafkaOutboxPublisher {
 
     private static final String TOPIC = "order-events";
     private static final int RETRY_LIMIT = 5;
 
     private final OutboxEventRepository outboxEventRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private final OutboxEventService outboxEventService;
+    private final OutboxEventWriter outboxEventWriter;
     private final ObjectMapper objectMapper;
 
     @Scheduled(fixedDelayString = "${outbox.publish.delay}")
@@ -57,9 +58,9 @@ public class OutboxEventPublisher {
                     message
             ).whenComplete((result, ex) -> {
                 if (ex == null) {
-                    outboxEventService.markPublished(event.getId());
+                    outboxEventWriter.markPublished(event.getId());
                 } else {
-                    outboxEventService.markFailed(event.getId(), ex);
+                    outboxEventWriter.markFailed(event.getId(), ex);
                     log.error(
                             "event=kafka_publish_failed component=kafka-producer " +
                                     "eventId={} eventType={} aggregateId={} topic={}",
@@ -73,7 +74,7 @@ public class OutboxEventPublisher {
             });
 
         } catch (JsonProcessingException e) {
-            outboxEventService.markFailed(event.getId(), e);
+            outboxEventWriter.markFailed(event.getId(), e);
             log.error(
                     "event=kafka_serialization_failed component=kafka-producer " +
                             "eventId={} eventType={} aggregateId={}",

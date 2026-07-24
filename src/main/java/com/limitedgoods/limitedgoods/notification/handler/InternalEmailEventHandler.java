@@ -1,8 +1,8 @@
-package com.limitedgoods.limitedgoods.notification.service;
+package com.limitedgoods.limitedgoods.notification.handler;
 
 import com.limitedgoods.limitedgoods.event.payload.order.OrderPaidEvent;
-import com.limitedgoods.limitedgoods.event.processed.entity.ProcessedEvent;
-import com.limitedgoods.limitedgoods.event.processed.repository.ProcessedEventRepository;
+import com.limitedgoods.limitedgoods.event.idempotency.entity.ProcessedEvent;
+import com.limitedgoods.limitedgoods.event.idempotency.repository.ProcessedEventRepository;
 import com.limitedgoods.limitedgoods.notification.entity.EmailDelivery;
 import com.limitedgoods.limitedgoods.notification.repository.EmailDeliveryRepository;
 import com.limitedgoods.limitedgoods.notification.template.EmailTemplateCatalog;

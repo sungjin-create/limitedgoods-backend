@@ -16,7 +16,7 @@ public class EmailDeliveryStateService {
     private final EmailDeliveryRepository emailDeliveryRepository;
 
     @Transactional
-    public List<ClaimedEmail> claimBatch(
+    public List<ClaimedEmailDelivery> claimBatch(
             LocalDateTime now,
             LocalDateTime staleBefore,
             int maxAttempts,
@@ -37,7 +37,7 @@ public class EmailDeliveryStateService {
 
         return deliveries.stream()
                 .map(delivery ->
-                        new ClaimedEmail(
+                        new ClaimedEmailDelivery(
                                 delivery.getId(),
                                 delivery.markProcessing(now)
                         ))
@@ -56,7 +56,7 @@ public class EmailDeliveryStateService {
 
     @Transactional
     public void markRetryableFailure(
-            ClaimedEmail claim,
+            ClaimedEmailDelivery claim,
             Throwable exception,
             int maxAttempts,
             LocalDateTime now
@@ -73,7 +73,7 @@ public class EmailDeliveryStateService {
 
     @Transactional
     public void markPermanentFailure(
-            ClaimedEmail claim,
+            ClaimedEmailDelivery claim,
             Throwable exception
     ) {
         EmailDelivery delivery = getForUpdate(claim.deliveryId());
@@ -86,7 +86,7 @@ public class EmailDeliveryStateService {
 
     @Transactional
     public void releaseAfterInfrastructureFailure(
-            ClaimedEmail claim,
+            ClaimedEmailDelivery claim,
             Throwable exception,
             LocalDateTime nextAttemptAt
     ) {
@@ -101,11 +101,11 @@ public class EmailDeliveryStateService {
 
     @Transactional
     public void releaseBatchAfterInfrastructureFailure(
-            List<ClaimedEmail> claims,
+            List<ClaimedEmailDelivery> claims,
             String reason,
             LocalDateTime nextAttemptAt
     ) {
-        for (ClaimedEmail claim : claims) {
+        for (ClaimedEmailDelivery claim : claims) {
             EmailDelivery delivery = getForUpdate(claim.deliveryId());
 
             if (!delivery.isOwnedBy(claim.claimToken())) {

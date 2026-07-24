@@ -1,6 +1,6 @@
 package com.limitedgoods.limitedgoods.notification.entity;
 
-import com.limitedgoods.limitedgoods.notification.exception.ClaimOwnershipLostException;
+import com.limitedgoods.limitedgoods.notification.exception.EmailDeliveryClaimOwnershipLostException;
 import com.limitedgoods.limitedgoods.notification.template.EmailTemplateData;
 import com.limitedgoods.limitedgoods.notification.template.EmailTemplateKey;
 import com.limitedgoods.limitedgoods.notification.template.EmailTemplateType;
@@ -18,8 +18,6 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "internal_email_delivery", uniqueConstraints = @UniqueConstraint(columnNames = "event_id"))
 public class EmailDelivery {
-    public enum Status { PENDING, PROCESSING, SENT, FAILED, DEAD }
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -42,7 +40,7 @@ public class EmailDelivery {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Status status;
+    private EmailDeliveryStatus status;
 
     @Column(name = "retry_count", nullable = false)
     private int retryCount;
@@ -84,7 +82,7 @@ public class EmailDelivery {
         this.templateType = templateType;
         this.templateVersion = templateVersion;
 
-        this.status = Status.PENDING;
+        this.status = EmailDeliveryStatus.PENDING;
         this.nextAttemptAt = LocalDateTime.now();
         this.createdAt = LocalDateTime.now();
     }
@@ -98,19 +96,19 @@ public class EmailDelivery {
     }
 
     public UUID markProcessing(LocalDateTime now) {
-        if (status == Status.SENT || status == Status.DEAD) {
+        if (status == EmailDeliveryStatus.SENT || status == EmailDeliveryStatus.DEAD) {
             throw new IllegalStateException(
                     "Completed email delivery cannot be claimed"
             );
         }
 
-        if (status == Status.PROCESSING) {
+        if (status == EmailDeliveryStatus.PROCESSING) {
             leaseExpiredCount++;
         }
 
         UUID newClaimToken = UUID.randomUUID();
 
-        status = Status.PROCESSING;
+        status = EmailDeliveryStatus.PROCESSING;
         processingStartedAt = now;
         claimToken = newClaimToken;
         attemptCount++;
@@ -119,14 +117,14 @@ public class EmailDelivery {
     }
 
     public boolean isOwnedBy(UUID expectedClaimToken) {
-        return status == Status.PROCESSING
+        return status == EmailDeliveryStatus.PROCESSING
                 && Objects.equals(claimToken, expectedClaimToken);
     }
 
     public void markSent(UUID expectedClaimToken, LocalDateTime now) {
         requireOwnership(expectedClaimToken);
 
-        status = Status.SENT;
+        status = EmailDeliveryStatus.SENT;
         sentAt = now;
         processingStartedAt = null;
         claimToken = null;
@@ -147,11 +145,11 @@ public class EmailDelivery {
         claimToken = null;
 
         if (attemptCount >= maxAttempts) {
-            status = Status.DEAD;
+            status = EmailDeliveryStatus.DEAD;
             return;
         }
 
-        status = Status.FAILED;
+        status = EmailDeliveryStatus.FAILED;
 
         long backoffMinutes = Math.min(
                 30,
@@ -167,7 +165,7 @@ public class EmailDelivery {
     ) {
         requireOwnership(expectedClaimToken);
 
-        status = Status.DEAD;
+        status = EmailDeliveryStatus.DEAD;
         retryCount++;
         lastError = truncateError(error);
         processingStartedAt = null;
@@ -175,13 +173,13 @@ public class EmailDelivery {
     }
 
     public void requeueDead(LocalDateTime now) {
-        if (status != Status.DEAD) {
+        if (status != EmailDeliveryStatus.DEAD) {
             throw new IllegalStateException(
                     "Only DEAD delivery can be requeued"
             );
         }
 
-        status = Status.PENDING;
+        status = EmailDeliveryStatus.PENDING;
         retryCount = 0;
         attemptCount = 0;
         leaseExpiredCount = 0;
@@ -200,7 +198,7 @@ public class EmailDelivery {
     ) {
         requireOwnership(expectedClaimToken);
 
-        status = Status.FAILED;
+        status = EmailDeliveryStatus.FAILED;
         lastError = truncateError(error);
 
         processingStartedAt = null;
@@ -217,7 +215,7 @@ public class EmailDelivery {
 
     private void requireOwnership(UUID expectedClaimToken) {
         if (!isOwnedBy(expectedClaimToken)) {
-            throw new ClaimOwnershipLostException(id, expectedClaimToken);
+            throw new EmailDeliveryClaimOwnershipLostException(id, expectedClaimToken);
         }
     }
 

@@ -1,4 +1,4 @@
-package com.limitedgoods.limitedgoods.event.processed.dto;
+package com.limitedgoods.limitedgoods.event.outbox.publisher.kafka;
 
 public record KafkaEventEnvelope(
         Long eventId,

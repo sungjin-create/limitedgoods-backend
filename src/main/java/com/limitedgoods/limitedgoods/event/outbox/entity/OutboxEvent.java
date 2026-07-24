@@ -1,6 +1,6 @@
 package com.limitedgoods.limitedgoods.event.outbox.entity;
 
-import com.limitedgoods.limitedgoods.event.outbox.exception.OutboxClaimOwnershipLostException;
+import com.limitedgoods.limitedgoods.event.outbox.exception.OutboxEventClaimOwnershipLostException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -82,19 +82,6 @@ public class OutboxEvent {
         return event;
     }
 
-    public void markPublished() {
-        this.status = OutboxEventStatus.PUBLISHED;
-        this.publishedAt = LocalDateTime.now();
-        this.lastError = null;
-    }
-
-    public void markFailed(String errorMessage) {
-        this.status = OutboxEventStatus.FAILED;
-        this.retryCount++;
-        this.lastError = errorMessage;
-        this.lastTriedAt = LocalDateTime.now();
-    }
-
     public UUID markProcessing(LocalDateTime now) {
         if (status == OutboxEventStatus.PUBLISHED
                 || status == OutboxEventStatus.DEAD) {
@@ -172,7 +159,7 @@ public class OutboxEvent {
 
     private void requireOwnership(UUID expectedClaimToken) {
         if (!isOwnedBy(expectedClaimToken)) {
-            throw new OutboxClaimOwnershipLostException(
+            throw new OutboxEventClaimOwnershipLostException(
                     id,
                     expectedClaimToken
             );

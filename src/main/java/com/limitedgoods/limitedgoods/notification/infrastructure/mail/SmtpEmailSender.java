@@ -3,6 +3,7 @@ package com.limitedgoods.limitedgoods.notification.infrastructure.mail;
 import com.limitedgoods.limitedgoods.notification.exception.EmailInfrastructureException;
 import com.limitedgoods.limitedgoods.notification.exception.NonRetryableEmailException;
 import com.limitedgoods.limitedgoods.notification.exception.RetryableEmailException;
+import com.limitedgoods.limitedgoods.notification.sendor.EmailSender;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

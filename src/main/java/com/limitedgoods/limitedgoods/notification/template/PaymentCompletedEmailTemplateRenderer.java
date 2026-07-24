@@ -3,7 +3,7 @@ package com.limitedgoods.limitedgoods.notification.template;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PaymentCompletedEmailTemplate implements EmailTemplateRenderer {
+public class PaymentCompletedEmailTemplateRenderer implements EmailTemplateRenderer {
 
     private static final EmailTemplateKey KEY =
             EmailTemplateCatalog.PAYMENT_COMPLETED_V1;

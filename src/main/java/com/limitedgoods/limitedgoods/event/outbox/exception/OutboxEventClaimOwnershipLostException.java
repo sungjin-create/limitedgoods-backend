@@ -2,10 +2,10 @@ package com.limitedgoods.limitedgoods.event.outbox.exception;
 
 import java.util.UUID;
 
-public class OutboxClaimOwnershipLostException
+public class OutboxEventClaimOwnershipLostException
         extends RuntimeException {
 
-    public OutboxClaimOwnershipLostException(
+    public OutboxEventClaimOwnershipLostException(
             Long eventId,
             UUID claimToken
     ) {
