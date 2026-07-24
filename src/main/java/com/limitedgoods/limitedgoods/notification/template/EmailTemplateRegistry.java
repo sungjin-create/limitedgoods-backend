@@ -9,38 +9,24 @@ import java.util.Map;
 @Component
 public class EmailTemplateRegistry {
 
-    private final Map<
-            EmailTemplateKey,
-            EmailTemplateRenderer
-            > renderers;
+    private final Map<EmailTemplateKey, EmailTemplateRenderer> renderers;
 
-    public EmailTemplateRegistry(
-            List<EmailTemplateRenderer> rendererList
-    ) {
-        Map<EmailTemplateKey, EmailTemplateRenderer> map =
-                new HashMap<>();
+    public EmailTemplateRegistry(List<EmailTemplateRenderer> rendererList) {
+        Map<EmailTemplateKey, EmailTemplateRenderer> map = new HashMap<>();
 
         for (EmailTemplateRenderer renderer : rendererList) {
-            EmailTemplateRenderer duplicated =
-                    map.put(renderer.key(), renderer);
+            EmailTemplateRenderer duplicated = map.put(renderer.key(), renderer);
 
             if (duplicated != null) {
-                throw new IllegalStateException(
-                        "Duplicated email template: "
-                                + renderer.key()
-                );
+                throw new IllegalStateException("Duplicated email template: " + renderer.key());
             }
         }
 
         this.renderers = Map.copyOf(map);
     }
 
-    public EmailContent render(
-            EmailTemplateKey key,
-            EmailTemplateData data
-    ) {
-        EmailTemplateRenderer renderer =
-                renderers.get(key);
+    public EmailContent render(EmailTemplateKey key, EmailTemplateData data) {
+        EmailTemplateRenderer renderer = renderers.get(key);
 
         if (renderer == null) {
             throw new EmailTemplateNotFoundException(key);

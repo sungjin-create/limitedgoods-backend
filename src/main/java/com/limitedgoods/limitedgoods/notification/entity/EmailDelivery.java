@@ -90,10 +90,7 @@ public class EmailDelivery {
     }
 
     public EmailTemplateKey getTemplateKey() {
-        return new EmailTemplateKey(
-                templateType,
-                templateVersion
-        );
+        return new EmailTemplateKey(templateType, templateVersion);
     }
 
     public EmailTemplateData getTemplateData() {
@@ -119,30 +116,6 @@ public class EmailDelivery {
         attemptCount++;
 
         return newClaimToken;
-    }
-
-    public void markSent(LocalDateTime now) {
-        requireProcessing();
-        status = Status.SENT;
-        sentAt = now;
-        processingStartedAt = null;
-        lastError = null;
-    }
-
-    public void markFailed(String error, int maxRetries, LocalDateTime now) {
-        requireProcessing();
-        retryCount++;
-        lastError = truncateError(error);
-        processingStartedAt = null;
-
-        if (retryCount >= maxRetries) {
-            status = Status.DEAD;
-            return;
-        }
-
-        status = Status.FAILED;
-        long backoffMinutes = Math.min(30, 1L << Math.min(retryCount - 1, 5));
-        nextAttemptAt = now.plusMinutes(backoffMinutes);
     }
 
     public boolean isOwnedBy(UUID expectedClaimToken) {
@@ -223,12 +196,6 @@ public class EmailDelivery {
     private void requireOwnership(UUID expectedClaimToken) {
         if (!isOwnedBy(expectedClaimToken)) {
             throw new ClaimOwnershipLostException(id, expectedClaimToken);
-        }
-    }
-
-    private void requireProcessing() {
-        if (status != Status.PROCESSING) {
-            throw new IllegalStateException("Email delivery is not being processed");
         }
     }
 

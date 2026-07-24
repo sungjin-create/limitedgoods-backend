@@ -3,14 +3,10 @@ package com.limitedgoods.limitedgoods.notification.template;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PaymentCompletedEmailTemplate
-        implements EmailTemplateRenderer {
+public class PaymentCompletedEmailTemplate implements EmailTemplateRenderer {
 
     private static final EmailTemplateKey KEY =
-            new EmailTemplateKey(
-                    EmailTemplateType.PAYMENT_COMPLETED,
-                    1
-            );
+            EmailTemplateCatalog.PAYMENT_COMPLETED_V1;
 
     @Override
     public EmailTemplateKey key() {
@@ -18,9 +14,7 @@ public class PaymentCompletedEmailTemplate
     }
 
     @Override
-    public EmailContent render(
-            EmailTemplateData data
-    ) {
+    public EmailContent render(EmailTemplateData data) {
         String subject =
                 "Limited Goods 결제가 완료되었습니다.";
 
