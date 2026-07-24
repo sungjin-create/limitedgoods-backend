@@ -235,6 +235,18 @@ public enum ErrorCode {
             HttpStatus.FORBIDDEN,
             "QUEUE_003",
             "유효하지 않거나 만료된 입장 토큰입니다."
+    ),
+
+    EMAIL_DELIVERY_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "EMAIL_001",
+            "이메일 발송 정보를 찾을 수 없습니다."
+    ),
+
+    EMAIL_DELIVERY_NOT_DEAD(
+            HttpStatus.CONFLICT,
+            "EMAIL_002",
+            "DEAD 상태의 이메일만 다시 처리할 수 있습니다."
     )
     ;
 
