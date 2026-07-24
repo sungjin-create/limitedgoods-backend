@@ -26,7 +26,7 @@ public class EmailDeliveryService {
     private final EmailDeliveryStateService stateService;
     private final EmailTemplateRegistry templateRegistry;
 
-    @Value("${app.mail.max-retries:5}")
+    @Value("${app.mail.max-attempts:5}")
     private int maxAttempts;
 
     public void send(ClaimedEmail claim) {
@@ -77,30 +77,4 @@ public class EmailDeliveryService {
         );
     }
 
-    private void recordProviderFailure(EmailDelivery delivery, Exception providerException) {
-        try {
-            EmailDelivery.Status status = stateService.markFailed(
-                    delivery.getId(),
-                    providerException,
-                    maxAttempts,
-                    LocalDateTime.now()
-            );
-            log.warn(
-                    "event=internal_email_delivery_failed deliveryId={} eventId={} status={} retryCount={} errorType={}",
-                    delivery.getId(),
-                    delivery.getEventId(),
-                    status,
-                    delivery.getRetryCount() + 1,
-                    providerException.getClass().getSimpleName()
-            );
-        } catch (Exception persistenceException) {
-            persistenceException.addSuppressed(providerException);
-            log.error(
-                    "event=internal_email_delivery_failure_persist_failed deliveryId={} eventId={}",
-                    delivery.getId(),
-                    delivery.getEventId(),
-                    persistenceException
-            );
-        }
-    }
 }

@@ -94,15 +94,4 @@ public class EmailDeliveryStateService {
                 );
     }
 
-    @Transactional
-    public EmailDelivery.Status markFailed(
-            Long deliveryId,
-            Throwable exception,
-            int maxRetries,
-            LocalDateTime now
-    ) {
-        EmailDelivery delivery = emailDeliveryRepository.findById(deliveryId).orElseThrow();
-        delivery.markFailed(exception.getMessage(), maxRetries, now);
-        return delivery.getStatus();
-    }
 }
