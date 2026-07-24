@@ -12,26 +12,35 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class InternalOutboxProcessor {
 
     private final OutboxEventRepository outboxEventRepository;
-    private final OutboxEventService outboxEventService;
+    private final InternalOutboxStateService internalOutboxStateService;
     private final InternalEmailEventHandler emailEventHandler;
     private final InternalAnalyticsEventHandler analyticsEventHandler;
     private final ObjectMapper objectMapper;
 
-    public void process(Long outboxEventId) {
+    public void process(ClaimedOutboxEvent claim) {
         OutboxEvent outboxEvent =
                 outboxEventRepository
-                .findById(outboxEventId)
-                .orElseThrow();
+                        .findById(claim.eventId())
+                        .orElseThrow();
+
+        /*
+         * lease 만료 후 다른 서버가 다시 claim한 경우
+         * 오래된 서버는 처리하지 않습니다.
+         */
+        if (!outboxEvent.isOwnedBy(claim.claimToken())) {
+            return;
+        }
 
         switch (outboxEvent.getEventType()) {
-            case ORDER_PAID ->
-                    processOrderPaid(outboxEvent);
+            case ORDER_PAID -> processOrderPaid(outboxEvent);
 
             case ORDER_EXPIRED, ORDER_CANCELED ->
                     log.debug(
@@ -42,14 +51,13 @@ public class InternalOutboxProcessor {
                     );
         }
 
-        outboxEventService.markPublished(
-                outboxEvent.getId()
+        internalOutboxStateService.markPublished(
+                claim,
+                LocalDateTime.now()
         );
     }
 
-    private void processOrderPaid(
-            OutboxEvent outboxEvent
-    ) {
+    private void processOrderPaid(OutboxEvent outboxEvent) {
         OrderPaidEvent event = readOrderPaidEvent(outboxEvent.getPayload());
 
         InternalEventProcessingException failure =
