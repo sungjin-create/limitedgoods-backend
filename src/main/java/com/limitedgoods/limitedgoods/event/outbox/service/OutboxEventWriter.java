@@ -38,19 +38,4 @@ public class OutboxEventWriter {
         }
     }
 
-    @Transactional
-    public void markPublished(Long eventId) {
-        OutboxEvent event = outboxEventRepository.findById(eventId)
-                .orElseThrow();
-
-        event.markPublished();
-    }
-
-    @Transactional
-    public void markFailed(Long eventId, Throwable ex) {
-        OutboxEvent event = outboxEventRepository.findById(eventId)
-                .orElseThrow();
-
-        event.markFailed(ex.getMessage());
-    }
 }

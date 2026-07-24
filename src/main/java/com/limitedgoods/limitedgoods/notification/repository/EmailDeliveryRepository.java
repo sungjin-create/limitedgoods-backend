@@ -1,6 +1,7 @@
 package com.limitedgoods.limitedgoods.notification.repository;
 
 import com.limitedgoods.limitedgoods.notification.entity.EmailDelivery;
+import com.limitedgoods.limitedgoods.notification.entity.EmailDeliveryStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -72,7 +73,7 @@ public interface EmailDeliveryRepository extends JpaRepository<EmailDelivery, Lo
     );
 
     Page<EmailDelivery> findByStatus(
-            EmailDelivery.Status status,
+            EmailDeliveryStatus status,
             Pageable pageable
     );
 }
