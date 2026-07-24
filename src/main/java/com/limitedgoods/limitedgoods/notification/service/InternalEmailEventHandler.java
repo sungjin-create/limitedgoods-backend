@@ -26,16 +26,11 @@ public class InternalEmailEventHandler {
             Long eventId,
             OrderPaidEvent event
     ) {
-        if (processedEventRepository
-                .existsByEventIdAndConsumerName(
-                        eventId,
-                        CONSUMER_NAME
-                )) {
+        if (processedEventRepository.existsByEventIdAndConsumerName(eventId, CONSUMER_NAME)) {
             return;
         }
 
-        EmailTemplateKey templateKey =
-                EmailTemplateCatalog.PAYMENT_COMPLETED_V1;
+        EmailTemplateKey templateKey = EmailTemplateCatalog.PAYMENT_COMPLETED_V1;
 
         EmailDelivery delivery = new EmailDelivery(
                 eventId,
@@ -47,11 +42,6 @@ public class InternalEmailEventHandler {
 
         emailDeliveryRepository.save(delivery);
 
-        processedEventRepository.save(
-                new ProcessedEvent(
-                        eventId,
-                        CONSUMER_NAME
-                )
-        );
+        processedEventRepository.save(new ProcessedEvent(eventId, CONSUMER_NAME));
     }
 }

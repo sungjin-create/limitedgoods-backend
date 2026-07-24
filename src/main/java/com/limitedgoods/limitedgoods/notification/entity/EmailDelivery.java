@@ -193,6 +193,28 @@ public class EmailDelivery {
         // SENT가 될 때까지 유지하는 것을 권장합니다.
     }
 
+    public void releaseAfterInfrastructureFailure(
+            UUID expectedClaimToken,
+            String error,
+            LocalDateTime nextAttemptAt
+    ) {
+        requireOwnership(expectedClaimToken);
+
+        status = Status.FAILED;
+        lastError = truncateError(error);
+
+        processingStartedAt = null;
+        claimToken = null;
+
+        // markProcessing()에서 증가한 이번 시도는
+        // 이메일 자체의 실패가 아니므로 원상 복구합니다.
+        attemptCount = Math.max(0, attemptCount - 1);
+
+        // provider가 이메일을 거절한 것이 아니므로
+        // retryCount는 증가시키지 않습니다.
+        this.nextAttemptAt = nextAttemptAt;
+    }
+
     private void requireOwnership(UUID expectedClaimToken) {
         if (!isOwnedBy(expectedClaimToken)) {
             throw new ClaimOwnershipLostException(id, expectedClaimToken);

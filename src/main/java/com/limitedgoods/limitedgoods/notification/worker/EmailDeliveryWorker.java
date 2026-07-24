@@ -1,5 +1,7 @@
 package com.limitedgoods.limitedgoods.notification.worker;
 
+import com.limitedgoods.limitedgoods.notification.exception.EmailInfrastructureException;
+import com.limitedgoods.limitedgoods.notification.infrastructure.mail.EmailProviderCircuit;
 import com.limitedgoods.limitedgoods.notification.service.ClaimedEmail;
 import com.limitedgoods.limitedgoods.notification.service.EmailDeliveryService;
 import com.limitedgoods.limitedgoods.notification.service.EmailDeliveryStateService;
@@ -11,6 +13,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -26,6 +30,7 @@ public class EmailDeliveryWorker {
 
     private final EmailDeliveryStateService stateService;
     private final EmailDeliveryService deliveryService;
+    private final EmailProviderCircuit providerCircuit;
 
     @Value("${app.mail.max-attempts:5}")
     private int maxAttempts;
@@ -36,21 +41,47 @@ public class EmailDeliveryWorker {
     @Value("${app.mail.batch-size:10}")
     private int batchSize;
 
+    @Value("${app.mail.infrastructure-backoff-ms:300000}")
+    private long infrastructureBackoffMs;
+
     @Scheduled(fixedDelayString = "${app.mail.retry-delay-ms:5000}")
     public void sendPendingEmails() {
+        Instant currentInstant = Instant.now();
+
+        if (providerCircuit.isBlocked(currentInstant)) {
+            log.debug("event=email_provider_circuit_open "
+                            + "blockedUntil={}",
+                    providerCircuit.getBlockedUntil()
+            );
+            return;
+        }
+
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime staleBefore = now.minusSeconds(processingLeaseSeconds);
 
-        List<ClaimedEmail> claims = stateService.claimBatch(
-                now,
-                staleBefore,
-                maxAttempts,
-                batchSize
-        );
+        List<ClaimedEmail> claims =
+                stateService.claimBatch(
+                        now,
+                        staleBefore,
+                        maxAttempts,
+                        batchSize
+                );
 
-        for (ClaimedEmail claim : claims) {
+        processClaims(claims);
+    }
+
+    private void processClaims(List<ClaimedEmail> claims) {
+        for (int index = 0; index < claims.size(); index++) {
+
+            ClaimedEmail claim = claims.get(index);
+
             try {
                 deliveryService.send(claim);
+
+            } catch (EmailInfrastructureException exception) {
+                releaseRemainingClaims(claims, index + 1,exception);
+                break;
+
             } catch (Exception exception) {
                 log.error(
                         "event=email_delivery_unexpected_failure "
@@ -61,5 +92,35 @@ public class EmailDeliveryWorker {
                 );
             }
         }
+    }
+
+    private void releaseRemainingClaims(
+            List<ClaimedEmail> claims,
+            int fromIndex,
+            EmailInfrastructureException exception
+    ) {
+        if (fromIndex >= claims.size()) {
+            return;
+        }
+
+        Duration backoff = Duration.ofMillis(infrastructureBackoffMs);
+
+        LocalDateTime nextAttemptAt = LocalDateTime.now().plus(backoff);
+
+        List<ClaimedEmail> remainingClaims = claims.subList(fromIndex, claims.size());
+
+        stateService.releaseBatchAfterInfrastructureFailure(
+                remainingClaims,
+                "Email provider is unavailable: "
+                        + exception.getClass().getSimpleName(),
+                nextAttemptAt
+        );
+
+        log.error(
+                "event=email_provider_unavailable "
+                        + "releasedClaims={} retryAt={}",
+                remainingClaims.size(),
+                nextAttemptAt
+        );
     }
 }

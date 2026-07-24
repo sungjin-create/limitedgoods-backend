@@ -84,12 +84,47 @@ public class EmailDeliveryStateService {
         );
     }
 
+    @Transactional
+    public void releaseAfterInfrastructureFailure(
+            ClaimedEmail claim,
+            Throwable exception,
+            LocalDateTime nextAttemptAt
+    ) {
+        EmailDelivery delivery = getForUpdate(claim.deliveryId());
+
+        delivery.releaseAfterInfrastructureFailure(
+                claim.claimToken(),
+                exception.getMessage(),
+                nextAttemptAt
+        );
+    }
+
+    @Transactional
+    public void releaseBatchAfterInfrastructureFailure(
+            List<ClaimedEmail> claims,
+            String reason,
+            LocalDateTime nextAttemptAt
+    ) {
+        for (ClaimedEmail claim : claims) {
+            EmailDelivery delivery = getForUpdate(claim.deliveryId());
+
+            if (!delivery.isOwnedBy(claim.claimToken())) {
+                continue;
+            }
+
+            delivery.releaseAfterInfrastructureFailure(
+                    claim.claimToken(),
+                    reason,
+                    nextAttemptAt
+            );
+        }
+    }
+
     private EmailDelivery getForUpdate(Long deliveryId) {
         return emailDeliveryRepository
                 .findByIdForUpdate(deliveryId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Email delivery not found: " + deliveryId
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Email delivery not found: " + deliveryId
                         )
                 );
     }

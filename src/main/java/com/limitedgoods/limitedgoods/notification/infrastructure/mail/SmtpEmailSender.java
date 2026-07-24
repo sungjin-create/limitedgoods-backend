@@ -1,5 +1,6 @@
 package com.limitedgoods.limitedgoods.notification.infrastructure.mail;
 
+import com.limitedgoods.limitedgoods.notification.exception.EmailInfrastructureException;
 import com.limitedgoods.limitedgoods.notification.exception.NonRetryableEmailException;
 import com.limitedgoods.limitedgoods.notification.exception.RetryableEmailException;
 import jakarta.mail.internet.AddressException;
@@ -25,22 +26,15 @@ public class SmtpEmailSender implements EmailSender {
 
     public SmtpEmailSender(JavaMailSender mailSender, Environment environment) {
         this.mailSender = mailSender;
-        this.from = environment.getRequiredProperty(
-                "app.mail.from"
-        );
+        this.from = environment.getRequiredProperty("app.mail.from");
     }
 
     @Override
-    public void send(
-            String recipientEmail,
-            String subject,
-            String body
-    ) {
+    public void send(String recipientEmail,  String subject, String body) {
         validateRecipient(recipientEmail);
 
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-
             message.setFrom(from);
             message.setTo(recipientEmail);
             message.setSubject(subject);
@@ -48,31 +42,23 @@ public class SmtpEmailSender implements EmailSender {
 
             mailSender.send(message);
 
-        } catch (MailAuthenticationException |
-                 MailParseException exception) {
+        } catch (MailAuthenticationException exception) {
+            throw new EmailInfrastructureException("SMTP authentication failed", exception);
 
-            throw new NonRetryableEmailException(
-                    "SMTP configuration or message is invalid",
-                    exception
-            );
+        } catch (MailParseException exception) {
+            throw new NonRetryableEmailException("Email message is invalid", exception);
 
         } catch (MailException exception) {
-
-            throw new RetryableEmailException(
-                    "SMTP delivery temporarily failed",
-                    exception
-            );
+            throw new RetryableEmailException("SMTP delivery temporarily failed", exception);
         }
     }
+
 
     private void validateRecipient(String recipientEmail) {
         try {
             new InternetAddress(recipientEmail, true );
         } catch (AddressException exception) {
-            throw new NonRetryableEmailException(
-                    "Recipient email is invalid",
-                    exception
-            );
+            throw new NonRetryableEmailException("Recipient email is invalid", exception);
         }
     }
 }
